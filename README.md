@@ -77,4 +77,3 @@ Returns:
 ## License
 
 MIT
-
