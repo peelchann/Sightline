@@ -1,0 +1,30 @@
+### Health Check
+GET http://localhost:3000/health
+
+###
+
+### Clock Tower (Should return match)
+GET http://localhost:3000/answer?lat=22.2946&lng=114.1699
+
+###
+
+### Star Ferry Central (Should return match)
+GET http://localhost:3000/answer?lat=22.2800&lng=114.1587
+
+###
+
+### Avenue of Stars (Should return match)
+GET http://localhost:3000/answer?lat=22.2930&lng=114.1730
+
+###
+
+### Far location (Should return default "Look around")
+GET http://localhost:3000/answer?lat=22.3000&lng=114.2000
+
+###
+
+### Invalid coordinates (Should return 400 error)
+GET http://localhost:3000/answer?lat=abc&lng=def
+
+###
+
