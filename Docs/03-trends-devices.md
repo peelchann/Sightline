@@ -75,3 +75,5 @@
 - Snap Spectacles: [Dev Kit Announcement Sept 2024](https://www.spectacles.com)
 - Ray-Ban Meta Gen 2 rumors: [The Verge, Oct 2024](https://www.theverge.com/meta-smart-glasses)
 
+
+

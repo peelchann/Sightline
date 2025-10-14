@@ -4,7 +4,11 @@
 
 ## Stack Overview
 
-Sightline uses a **multi-platform architecture** designed for rapid iteration (phones) with future glasses compatibility (Ray-Ban Meta, Meta Orion).
+Sightline uses a **hybrid AR anchoring architecture** combining GPS-based geospatial positioning (primary) with Vuforia visual tracking (fallback/high-accuracy). Designed for rapid iteration on phones with future glasses compatibility (Ray-Ban Meta, Meta Orion).
+
+## Chosen Architecture: Hybrid Anchoring (Option C)
+
+**Rationale:** Demonstrates technical breadth (outdoor + indoor), mitigates GPS limitations, and future-proofs for glasses while maintaining pragmatic engineering.
 
 ## Core Technologies
 
@@ -48,6 +52,94 @@ Sightline uses a **multi-platform architecture** designed for rapid iteration (p
 - **Storage:** S3 for static assets (future: POI images, audio)
 - **CDN:** CloudFront for low-latency API calls from HK
 - **Cost:** <HKD 500/month at MVP scale (100-500 requests/day)
+
+## Hybrid Anchoring Strategy (Technical Deep Dive)
+
+### Outdoor (Phone + ARCore Geospatial) — Primary Path
+
+**Flow:**
+```
+1. User opens app → ARSession initializes
+2. App requests location → GPS: 22.2946, 114.1699
+3. Call backend: POST /identify {lat, lng}
+4. Backend: Haversine → nearest POI within 150m
+5. Return: {poiId: "clock_tower", confidence: 1.0}
+6. ARCore creates GeoAnchor at Clock Tower GPS coordinates
+7. Render AR card at anchor position
+8. Card stays locked to real-world location
+```
+
+**Latency Budget:**
+- GPS capture: <100ms
+- API call (POST /identify): <300ms
+- ARCore anchor creation: <200ms
+- **Total p50 target: <0.6s**
+
+**Fallback:** If GPS accuracy >10m → switch to Vuforia Area Target
+
+### High Accuracy (Phone/Quest + Vuforia) — Fallback/Indoor
+
+**Flow:**
+```
+1. User points at Clock Tower
+2. Vuforia Area Target recognizes visual features
+3. "I see Clock Tower" (no GPS needed)
+4. Call backend: POST /identify {image} (optional)
+5. Vuforia creates anchor at predefined transform on Area Target
+6. Render AR card at anchor
+7. ±5cm accuracy, stable for minutes
+```
+
+**Latency Budget:**
+- Vuforia recognition: <400ms
+- Optional vision API: 400-800ms
+- Anchor creation: <100ms
+- **Total p50 target: <1.5s** (without vision) or **<1.8s** (with vision)
+
+### Indoor Only (Quest 3 + Image Target) — Guaranteed Lock
+
+**Flow:**
+```
+1. Print Clock Tower poster → place in museum/Cyberport office
+2. User points Quest 3 at poster
+3. Vuforia Image Target recognizes poster instantly
+4. Anchor locks to poster transform
+5. Optional: Send frame to Gemini Vision for label confirmation
+6. Render AR card next to poster
+7. User can walk around, card follows poster
+```
+
+**Latency Budget:**
+- Image Target recognition: <200ms
+- Optional vision API: 400-800ms
+- **Total p50 target: <1.2s**
+
+### Decision Tree (In Code)
+
+```typescript
+async function identifyPOI(lat?: number, lng?: number, image?: string) {
+  // Path 1: GPS-based (fastest)
+  if (lat && lng && gpsAccuracy < 10) {
+    const poi = selectPOIByGPS(lat, lng);
+    return {poiId: poi.id, confidence: 1.0, method: 'geo'};
+  }
+  
+  // Path 2: Vuforia Area Target (high accuracy fallback)
+  if (vuforiaTargetRecognized) {
+    const poi = getPOIFromAreaTarget(targetId);
+    return {poiId: poi.id, confidence: 0.95, method: 'vuforia'};
+  }
+  
+  // Path 3: Vision AI (when above methods fail)
+  if (image) {
+    const result = await geminiVision(image);
+    return {poiId: result.id, confidence: result.confidence, method: 'vision'};
+  }
+  
+  // Path 4: Default
+  return {poiId: 'default', confidence: 0.0, method: 'default'};
+}
+```
 
 ### WebDemo (Browser Testing)
 
@@ -227,4 +319,5 @@ Sightline uses a **multi-platform architecture** designed for rapid iteration (p
 - Builds HK XR community
 - Demonstrates technical credibility for CIP application
 - Attracts contributors (future: POI crowdsourcing)
+
 

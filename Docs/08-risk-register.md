@@ -264,3 +264,5 @@ CCMF approval rate is ~30-40%. Common rejection reasons:
 - Include in CCMF final report: "Risks identified, mitigations applied, outcomes achieved"
 - Demonstrates mature project management for CIP application
 
+
+

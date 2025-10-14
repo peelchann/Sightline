@@ -25,31 +25,64 @@ A 60–90s clip where:
 
 ---
 
-## Interfaces & Contracts
+## Interfaces & Contracts (LOCKED)
 
-### API: GET `/answer`
+### API: POST `/identify`
 
-**Query:** `lat` (float), `lng` (float)
+**Purpose:** Identify POI from GPS coordinates OR image
 
-**200 OK:**
-
+**Request Body:**
 ```json
+// Option A: GPS-based identification
 {
-  "name": "Clock Tower",
-  "year": 1915,
-  "blurb": "Former KCR terminus landmark.",
-  "distance_m": 23.4,
-  "latency_ms": 142
+  "lat": 22.2946,
+  "lng": 114.1699
+}
+
+// Option B: Vision-based identification
+{
+  "image": "data:image/jpeg;base64,..."
 }
 ```
 
-If no POI within 150m:
-
+**200 OK Response:**
 ```json
 {
+  "poiId": "clock_tower",
+  "name": "Clock Tower",
+  "confidence": 0.95,
+  "requestId": "uuid-here",
+  "server_ms": 142
+}
+```
+
+**Default (no match):**
+```json
+{
+  "poiId": "default",
   "name": "Look around",
-  "year": null,
-  "blurb": "Try pointing at a known landmark."
+  "confidence": 0.0,
+  "requestId": "uuid-here",
+  "server_ms": 98
+}
+```
+
+### API: GET `/poi/:id`
+
+**Purpose:** Fetch full POI details
+
+**200 OK Response:**
+```json
+{
+  "id": "clock_tower",
+  "name": "Clock Tower",
+  "aliases": ["Tsim Sha Tsui Clock Tower", "KCR Clock Tower"],
+  "lat": 22.2946,
+  "lng": 114.1699,
+  "year": 1915,
+  "blurb": "Former Kowloon-Canton Railway terminus landmark.",
+  "snapshots": ["/img/clock_tower_1.jpg"],
+  "bounds_m": 60
 }
 ```
 
@@ -157,4 +190,5 @@ public record AnswerDto(string name, int? year, string blurb, double distance_m,
 **Scripts (workspace root suggestion):**
 
 - Add a root `package.json` with `"workspaces": ["Server","WebDemo"]` and `"dev": "concurrently \"npm:dev-Server\" \"npm:dev-WebDemo\""`.
+
 
