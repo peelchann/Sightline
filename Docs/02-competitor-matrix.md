@@ -54,3 +54,5 @@ Comparison of AR/visual search platforms and their capabilities vs. Sightline. F
 - Ray-Ban Meta specs: [Product launch September 2023](https://www.ray-ban.com/usa/ray-ban-meta-smart-glasses)
 - Snap Spectacles: [Dev kit announced September 2024](https://www.spectacles.com)
 
+
+

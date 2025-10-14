@@ -139,3 +139,5 @@ Based on Cyberport alumni interviews and public programme guidelines:
 - [ ] Draft 8-page proposal with budget breakdown
 - [ ] Submit CCMF application (target: November 2025 intake)
 
+
+

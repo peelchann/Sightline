@@ -4,13 +4,64 @@
 
 ## Overview
 
-16 tasks designed for ~40-minute blocks. Each task is independently shippable and moves the MVP forward incrementally.
+Refined **7-day execution plan** with 20 blocks of ~40 minutes each. Based on CTO/founder feedback for CCMF submission timeline (Feb-Jul 2026).
+
+## Critical Path: 7 Days to Demo
+
+This plan gets you from zero to a field-testable demo suitable for CCMF application video.
 
 ---
 
-## Track B — Technical Implementation (Tasks 1-11)
+## Quick Reference: 7-Day Sprint
 
-### Task 1: Repo Initialization
+### Day 1-2: Backend + WebDemo (Blocks 1-5)
+- **Block 1-2:** Fastify server with POST `/identify` and GET `/poi/:id`, add requestId + server_ms
+- **Block 3:** In-memory cache (10-min TTL), seed `data/pois.json` with 3 HK POIs
+- **Block 4:** WebDemo: anchor dot + draggable card + SVG leader line
+- **Block 5:** WebDemo button calls `/identify`, displays latency/confidence
+
+**Acceptance:** Backend API responds with correct data structure; WebDemo renders anchor + card + line
+
+### Day 3-4: Unity + ARCore Geospatial (Blocks 6-9)
+- **Block 6:** Unity 2022.3 LTS + AR Foundation project setup, Android build runs on device
+- **Block 7:** `IAnswerService` C# interface + HTTP client to call backend
+- **Block 8:** ARCore Geospatial initialization, hardcode Clock Tower GPS anchor
+- **Block 9:** Connect Unity → `/identify` with GPS → populate AR card with response
+
+**Acceptance:** Phone app shows AR card anchored to Clock Tower GPS location, <1s latency
+
+### Day 5: Vuforia Integration (Blocks 10-13)
+- **Block 10:** Add Vuforia SDK to Unity, import Image Target (printed Clock Tower poster)
+- **Block 11:** Quest 3 platform switch, enable passthrough mode
+- **Block 12:** Capture camera frame → send to `/identify` (image), display confidence
+- **Block 13:** Low confidence UI: amber border + 2 disambiguation chips for <0.7 confidence
+
+**Acceptance:** Quest 3 recognizes poster, anchors card, shows confidence metric
+
+### Day 6: Polish & Filming (Blocks 14-17)
+- **Block 14:** Tap-to-lock fallback when geo/vision fails, "Re-aim to lock" state
+- **Block 15:** Telemetry overlay (shows latency/confidence/method on screen)
+- **Block 16:** Outdoor filming at Clock Tower: 3 clean takes showing ≥10s stability
+- **Block 17:** Indoor filming with Quest 3: 2 clean takes showing poster recognition
+
+**Acceptance:** 90-second raw footage captured, all KPIs visible in frame
+
+### Day 7: CCMF Packaging (Blocks 18-20)
+- **Block 18:** Edit video: cut 90s demo, add KPI slate at end, color grading
+- **Block 19:** Export Gantt chart, budget table, competitor 1-pager (from existing Docs)
+- **Block 20:** Finalize CCMF application draft, upload to Cyberport portal
+
+**Acceptance:** Application submitted with video link, all required documents attached
+
+---
+
+## Detailed Task Breakdown (Reference)
+
+The following sections provide step-by-step implementation details for each block. Use these as a guide during development.
+
+### Day 1-2: Backend + WebDemo
+
+### Block 1-2: Fastify Server Setup
 **Estimated Time:** 40 minutes
 
 **Steps:**
@@ -671,4 +722,6 @@
 1. Task 1: Repo Init (40 min) → Unlocks all other work
 2. Task 2-5: Server + Core Logic (160 min) → Proves technical feasibility
 3. Task 15: Application Outline (60 min) → Paste-ready CCMF submission
+
+
 

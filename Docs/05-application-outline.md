@@ -117,57 +117,87 @@ Sightline is an AR/AI mobile app that delivers instant, geo-anchored answers to 
 
 ---
 
-## 5. Six-Month Milestones & KPIs
+## 5. Six-Month Milestones & KPIs (Feb–Jul 2026)
 
-### Month 1-2: Technical Foundation
+### Month 1 (Feb 2026): Foundation
 **Deliverables:**
-- Node/Express API with haversine geo-selection + 3 HK POIs
-- WebDemo (Vite) with anchor dot, draggable card, SVG leader line
-- Unity stub with `IAnswerService` interface
-- Vitest suite (95%+ coverage for core geo logic)
-
-**KPIs:**
-- API latency: <500ms (p50) for `/answer` endpoint
-- Test coverage: ≥95% for geo functions
-- WebDemo functional: anchor + card + line rendering
-
-### Month 3-4: AR Integration & Pilot Deployment
-**Deliverables:**
+- Phone outdoor geo path live at 10 POIs
+- Fastify backend with POST `/identify` and GET `/poi/:id`
 - Unity + ARCore Geospatial integration (Android build)
-- Deploy to 3 pilot sites: Clock Tower, Star Ferry, Avenue of Stars
-- Record 90-second demo video showing:
-  - Stable anchor tracking (≥10s without re-lock)
-  - <2s latency from "What is this?" to overlay
-  - Readable outdoor display (tested in sunlight)
+- WebDemo prototype for backend testing
 
 **KPIs:**
-- Anchor stability: ≥10s continuous tracking (85% success rate)
-- Ask→overlay latency: <2.0s (p50), <3.0s (p95)
-- Demo video completion: 90s showing all 3 sites
+- p50 ask→overlay latency: ≤2.5s
+- Crash-free rate: ≥99.0%
+- GPS-only (no vision yet)
+- 10 POIs in Hong Kong (Tsim Sha Tsui, Central, Sheung Wan)
 
-### Month 5: User Testing & Validation
+### Month 2 (Mar 2026): Vuforia Fallback
 **Deliverables:**
-- 50 outdoor user tests (tourists + students) at pilot sites
-- Post-test survey (System Usability Scale + custom questions)
-- Iterate UX based on feedback (card size, font, latency perception)
+- Vuforia SDK integration for high-accuracy anchoring
+- Area Target scanning at 1-2 key POIs (Clock Tower, Star Ferry)
+- Quest 3 indoor demo working with Image Targets
+- Logging system showing method (geo/vision), latency, confidence
 
 **KPIs:**
-- Usability score: ≥85/100 (SUS scale)
-- Comprehension: 90%+ correctly recall POI name + year after 1 viewing
-- NPS (Net Promoter Score): ≥40 (would recommend to friend)
-- Technical reliability: <5% crash rate per session
+- Anchor stability: ≥10s without drift
+- Vuforia accuracy: ±5cm vs GPS ±5m
+- Quest 3 indoor demo functional
+- Logs capture requestId, server_ms, method, confidence
 
-### Month 6: Demo Polish & Documentation
+### Month 3 (Apr 2026): Feature Expansion
 **Deliverables:**
-- Final demo video (90s, professional production)
-- Technical documentation (API specs, setup guide)
-- Pilot site case studies (usage stats, quotes from site managers)
-- CCMF final report + pitch deck for CIP application
+- Expand to 20 POIs across Hong Kong
+- Voice input/output (Cantonese + English)
+- Save/Share functionality
+- Teacher trial at Star Ferry with ≥15 students
 
 **KPIs:**
-- Demo video polished: color grading, voiceover, subtitles
-- Documentation: README + API contract + deployment guide
-- Pilot feedback: 2-3 letters of support from heritage sites
+- 20 POIs live with curated content
+- User satisfaction: ≥80% (post-test survey)
+- Teacher feedback: 2-3 positive testimonials
+- Voice input working with ≥85% accuracy
+
+### Month 4 (May 2026): Beta Testing
+**Deliverables:**
+- Public beta launch with ≥50 users
+- Traditional Chinese (繁體中文) localization complete
+- Confidence gating UI (green/amber states, disambiguation chips)
+- Analytics dashboard for venue partners
+
+**KPIs:**
+- p50 latency: ≤2.0s (improved from Month 1)
+- Crash-free: ≥99.5%
+- Beta users: ≥50 MAU
+- NPS (Net Promoter Score): ≥40
+
+### Month 5 (Jun 2026): Demo Polish
+**Deliverables:**
+- 90-second field demo video
+  - Clock Tower outdoor (phone + ARCore Geospatial)
+  - Quest 3 indoor (Vuforia Image Target)
+  - Discovery beat (Sheung Wan)
+- Creator collaboration for video production
+- Draft venue SDK brief (for B2B partners)
+
+**KPIs:**
+- Video shows stable anchor, <2s response, visible leader line
+- 3 clean takes per location (≥10s stability)
+- Video includes KPI slate at end
+- Professional color grading, voiceover, subtitles
+
+### Month 6 (Jul 2026): Pilot Preparation
+**Deliverables:**
+- 1 LOI (Letter of Intent) from venue/district partner
+- Pilot plan with measurable outcomes
+- CIP application package prepared
+- Analytics dashboard showing venue engagement metrics
+
+**KPIs:**
+- LOI signed with heritage site or district
+- Pilot plan includes 3-month timeline and success criteria
+- CIP package includes: updated video, 6-month metrics, expansion plan
+- Venue analytics: session duration, popular POIs, user demographics
 
 ---
 
@@ -175,27 +205,29 @@ Sightline is an AR/AI mobile app that delivers instant, geo-anchored answers to 
 
 | Category | Item | Amount (HKD) | Justification |
 |----------|------|--------------|---------------|
-| **Development** | Founder salary (part-time, 6 mo @ 8,333/mo) | 50,000 | 50% of total; covers coding, testing, iteration |
-| **Cloud/Hosting** | AWS/GCP (API + storage, 6 months) | 3,000 | API hosting + ARCore API usage fees |
-| | Firebase (analytics, 6 months) | 2,000 | User session tracking + crash reporting |
-| **Hardware** | Android device (ARCore-compatible) | 4,000 | Pixel 8a for outdoor testing |
-| | Android device (backup/testing) | 4,000 | Samsung Galaxy S23 FE for cross-device QA |
-| | iPhone 15 (ARKit testing) | 7,000 | iOS compatibility testing (ARKit GeoAnchors) |
-| **Content** | POI copywriting (3 sites @ 1,500 each) | 4,500 | Professional copywriter + fact-checking |
-| | Photo/video assets (3 sites @ 500 each) | 1,500 | High-res landmark photos for promo |
-| **User Testing** | 50 participants (150 HKD/session) | 7,500 | Transport reimbursement + incentive |
-| | User testing logistics (venue, materials) | 1,500 | Printed consent forms, water, setup |
-| **Marketing/Demo** | Demo video production (filming + editing) | 5,000 | Professional videographer + editor |
-| | Pitch deck design | 2,000 | Designer for CCMF final report + CIP prep |
-| **Legal/Admin** | Company incorporation (if required) | 3,000 | Business registration + legal consult |
-| | Contracts (pilot sites, testers) | 2,000 | Agreement templates + review |
-| **Contingency** | Buffer (10% of total) | 3,000 | Unexpected costs (device repair, extra testing) |
+| **Development** | Unity XR Contractor (part-time) | 35,000 | AR development, 3 months @ 11,667/mo |
+| | Backend/API Development | 15,000 | Fastify server, AI integration, testing |
+| **Cloud & AI** | Vuforia Cloud License | 6,000 | $99/mo × 6 months (USD 594 ≈ HKD 4,600 + buffer) |
+| | Gemini Vision API | 2,000 | Image recognition, cache-optimized usage |
+| | Hosting (AWS/Vercel) | 2,000 | API hosting, CDN, database |
+| **Hardware** | Android device (ARCore) | 6,000 | Pixel 8 for outdoor testing |
+| | Quest 3 accessories | 4,000 | Head strap, battery pack, carrying case |
+| | Field testing equipment | 4,000 | Gimbal, external mic, portable charger |
+| | Backup devices | 6,000 | Samsung Galaxy for cross-device QA |
+| **Content** | POI content creation | 5,000 | Copywriting, fact-checking, photography (20 POIs) |
+| | 3D scanning (optional) | 2,000 | Polycam Pro subscription + processing |
+| | Translation (繁體中文) | 3,000 | Professional translation for 20 POIs |
+| **Design/Video** | UI/UX design | 3,000 | AR card design, color system, brand guidelines |
+| | Demo video production | 5,000 | Professional videographer, editing, color grading |
+| | Motion graphics | 2,000 | KPI slate, transitions, subtitles |
+| **Contingency** | Unexpected costs | 10,000 | Equipment repair, extra testing, overages |
 | **TOTAL** | | **100,000** | |
 
 **Notes:**
-- Founder salary capped at 50% per CCMF guidelines
-- All hardware (phones) retained for ongoing development post-CCMF
-- Receipts/invoices will be provided for all expenses
+- Unity XR contractor is part-time (not full-time), aligns with CCMF guidelines
+- Cloud costs kept minimal via GPS-primary strategy + caching
+- Hardware retained post-CCMF for ongoing development
+- All expenses documented with receipts per CCMF requirements
 
 ---
 
@@ -368,4 +400,6 @@ Before submitting to Cyberport CCMF:
 **Submit by:** [Target intake date, e.g., "November 15, 2025"]
 
 **Follow-up:** Email ccmf@cyberport.hk to confirm receipt within 3 business days.
+
+
 
