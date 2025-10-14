@@ -1,0 +1,3 @@
+# This file keeps the core/ directory in git
+# Core logic files (haversine.ts, geo.ts) will be added here
+
