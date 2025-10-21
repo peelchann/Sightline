@@ -119,85 +119,117 @@ Sightline is an AR/AI mobile app that delivers instant, geo-anchored answers to 
 
 ## 5. Six-Month Milestones & KPIs (Feb–Jul 2026)
 
-### Month 1 (Feb 2026): Foundation
+### Month 1 (Feb 2026): Foundation (A1)
 **Deliverables:**
-- Phone outdoor geo path live at 10 POIs
-- Fastify backend with POST `/identify` and GET `/poi/:id`
-- Unity + ARCore Geospatial integration (Android build)
-- WebDemo prototype for backend testing
+- Backend v1: POST `/identify`, GET `/poi/:id`, POST `/notes` + cache + telemetry
+- Android build with ARCore Geospatial (outdoor)
+- **Far-field bearing billboard** (IFC @ 2km with distance chip)
+- Indoor Vuforia Image/Area Target for guaranteed lock (Quest/phone)
+- WebDemo for API testing (4h)
 
 **KPIs:**
+- 10 POIs outdoor + 1 indoor target
 - p50 ask→overlay latency: ≤2.5s
+- Stability: ≥10s without drift
 - Crash-free rate: ≥99.0%
-- GPS-only (no vision yet)
-- 10 POIs in Hong Kong (Tsim Sha Tsui, Central, Sheung Wan)
 
-### Month 2 (Mar 2026): Vuforia Fallback
+**Innovation Highlight:**
+- **Far-field anchoring**: IFC billboard visible @ 2km, hand off to near-field as user approaches
+
+---
+
+### Month 2 (Mar 2026): Hybrid Anchoring (A2)
 **Deliverables:**
-- Vuforia SDK integration for high-accuracy anchoring
-- Area Target scanning at 1-2 key POIs (Clock Tower, Star Ferry)
-- Quest 3 indoor demo working with Image Targets
+- **Confidence state machine**: Green (locked) / Amber (re-aim) / Grey (searching)
+- Nearest-POI disambiguation chips when confidence < 0.7
+- Telemetry overlay ("1.7s • 0.86 • geo/vision")
 - Logging system showing method (geo/vision), latency, confidence
 
 **KPIs:**
+- 20 POIs live
+- Logs prove dual-path usage (geo + vision)
+- Confidence gating working (green/amber/grey states)
 - Anchor stability: ≥10s without drift
-- Vuforia accuracy: ±5cm vs GPS ±5m
-- Quest 3 indoor demo functional
-- Logs capture requestId, server_ms, method, confidence
 
-### Month 3 (Apr 2026): Feature Expansion
+**Innovation Highlight:**
+- **Adaptive UX**: System gracefully degrades from geo to vision to tap-to-lock based on conditions
+
+---
+
+### Month 3 (Apr 2026): Missions & Save/Share (A3)
 **Deliverables:**
-- Expand to 20 POIs across Hong Kong
-- Voice input/output (Cantonese + English)
-- Save/Share functionality
+- **Mission Engine v1**: JSON-authored steps + 3-Q recap quiz
+- Save ⭐ & shareable card image/video
+- **Notes API** (`/notes` - XR love-locks) with profanity filter
 - Teacher trial at Star Ferry with ≥15 students
 
 **KPIs:**
-- 20 POIs live with curated content
-- User satisfaction: ≥80% (post-test survey)
+- Share rate: ≥30% of sessions
+- D1 activation: ≥60%
+- 1 mission playable end-to-end
 - Teacher feedback: 2-3 positive testimonials
-- Voice input working with ≥85% accuracy
 
-### Month 4 (May 2026): Beta Testing
+**Innovation Highlight:**
+- **Mission Engine**: Gamified quests with steps, hints, rewards (museum pilot-ready)
+- **XR Love-Locks**: User-generated notes anchored to locations (community engagement)
+
+---
+
+### Month 4 (May 2026): Beta + Indoor Room (A4)
 **Deliverables:**
+- **Room-Pack v0**: Scan 1 museum room → Vuforia Area Target; 5–10 exhibits anchored
 - Public beta launch with ≥50 users
 - Traditional Chinese (繁體中文) localization complete
-- Confidence gating UI (green/amber states, disambiguation chips)
 - Analytics dashboard for venue partners
 
 **KPIs:**
 - p50 latency: ≤2.0s (improved from Month 1)
 - Crash-free: ≥99.5%
 - Beta users: ≥50 MAU
-- NPS (Net Promoter Score): ≥40
+- Indoor mission playable end-to-end
+- Room-Pack scan documentation complete (2-hour checklist)
 
-### Month 5 (Jun 2026): Demo Polish
+**Innovation Highlight:**
+- **Room-Pack**: Repeatable workflow for venues to create indoor AR experiences (scalable B2B model)
+
+---
+
+### Month 5 (Jun 2026): Film + SDK Brief (A5)
 **Deliverables:**
-- 90-second field demo video
-  - Clock Tower outdoor (phone + ARCore Geospatial)
-  - Quest 3 indoor (Vuforia Image Target)
-  - Discovery beat (Sheung Wan)
+- **90-second demo video** with 4 beats:
+  1. Clock Tower <2s lock (outdoor near-field)
+  2. **IFC far-field billboard** @ 2km with distance chip
+  3. Museum room with exact lock + **SAM-2 highlight** (part segmentation)
+  4. Discovery + save/share + love-locks
 - Creator collaboration for video production
-- Draft venue SDK brief (for B2B partners)
+- Venue/Museum SDK brief (Anchor/Answer API + analytics fields)
 
 **KPIs:**
-- Video shows stable anchor, <2s response, visible leader line
+- Video shows all 4 beats with visible leader line
 - 3 clean takes per location (≥10s stability)
-- Video includes KPI slate at end
-- Professional color grading, voiceover, subtitles
+- Video includes KPI slate at end (latency, confidence, method)
+- SDK brief reviewed by 1 venue partner
 
-### Month 6 (Jul 2026): Pilot Preparation
+**Innovation Highlight:**
+- **SAM-2 Integration**: Promptable segmentation highlights artifact parts (e.g., "Roman numerals" on relief)
+- **Far-field → near-field handoff**: Demonstrated in video (IFC billboard → Clock Tower exact lock)
+
+---
+
+### Month 6 (Jul 2026): LOI + CIP Prep (A6)
 **Deliverables:**
-- 1 LOI (Letter of Intent) from venue/district partner
-- Pilot plan with measurable outcomes
-- CIP application package prepared
+- 1 LOI (Letter of Intent) from museum/heritage venue with quoted pilot band
+- CIP pack: Milestones, budget, risks, metrics, expansion plan
 - Analytics dashboard showing venue engagement metrics
 
 **KPIs:**
 - LOI signed with heritage site or district
 - Pilot plan includes 3-month timeline and success criteria
-- CIP package includes: updated video, 6-month metrics, expansion plan
-- Venue analytics: session duration, popular POIs, user demographics
+- CIP package complete: updated video, 6-month metrics, Phase B roadmap
+- Venue analytics: session duration, popular POIs, quest completion, user demographics
+
+**Innovation Highlight:**
+- **Venue Analytics**: Dwell time, quest completion ≥60%, save rate tracked per exhibit (B2B value prop)
 
 ---
 

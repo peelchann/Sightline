@@ -98,21 +98,43 @@ Sightline uses a **hybrid AR anchoring architecture** combining GPS-based geospa
 
 ### Indoor Only (Quest 3 + Image Target) — Guaranteed Lock
 
+**Quest 3 Passthrough Camera API Setup:**
+```
+Unity Version: 2022.3.58 (or Unity 6.0.38)
+Meta XR SDK: v7.0+
+Quest OS: v74+ (enables Passthrough Camera API)
+```
+
 **Flow:**
 ```
 1. Print Clock Tower poster → place in museum/Cyberport office
 2. User points Quest 3 at poster
-3. Vuforia Image Target recognizes poster instantly
-4. Anchor locks to poster transform
-5. Optional: Send frame to Gemini Vision for label confirmation
-6. Render AR card next to poster
-7. User can walk around, card follows poster
+3. Passthrough Camera API captures camera frame
+4. Webcam Texture Manager provides camera texture (1280x960 default)
+5. Convert 2D screen point → 3D world position:
+   - Environment Raycast Manager casts ray into physical space
+   - Environment Depth Manager provides depth data
+   - Returns 3D pose (position + rotation aligned to surface normal)
+6. Vuforia Image Target recognizes poster instantly
+7. Anchor locks to poster transform at calculated 3D position
+8. Optional: Send frame to Gemini Vision for label confirmation
+9. Render AR card next to poster
+10. User can walk around, card follows poster
 ```
 
 **Latency Budget:**
+- Camera frame capture: <40ms
+- 2D→3D raycast conversion: <60ms
 - Image Target recognition: <200ms
 - Optional vision API: 400-800ms
-- **Total p50 target: <1.2s**
+- **Total p50 target: <1.2s** (without vision) or **<1.5s** (with vision)
+
+**Key Components (from Meta's Sample Repository):**
+- **Webcam Texture Manager**: Access left/right eye camera, resolution selection
+- **Passthrough Camera Permissions**: Runtime permission management
+- **Environment Raycast Manager**: Convert screen point to world ray
+- **Environment Depth Manager**: Required for raycast to work
+- **Meta XR Tools → Building Blocks**: Passthrough setup
 
 ### Decision Tree (In Code)
 
@@ -282,6 +304,38 @@ async function identifyPOI(lat?: number, lng?: number, image?: string) {
 │  - SAM-2 (segmentation)                         │
 └─────────────────────────────────────────────────┘
 ```
+
+## Meta Passthrough Camera API Resources
+
+**Official Repository:**
+- **GitHub:** [`oculus-samples/Unity-PassthroughCameraAPI`](https://github.com/oculus-samples/Unity-PassthroughCameraAPI)
+- **Unity Version:** 2022.3.58+ or Unity 6.0.38+
+- **Meta XR SDK:** v7.0+ (includes Passthrough Camera API support)
+- **Quest OS Requirement:** v74+ (experimental API enabled)
+
+**Sample Scenes Included:**
+1. **Camera Viewer** — Displays raw camera feed on 2D canvas
+2. **Camera to World** — Converts 2D camera coordinates to 3D world space
+3. **Brightness Estimation** — Analyzes environment lighting for UI adjustments
+4. **Multi-Object Detection** — AI-powered object recognition in real-time
+5. **Shader Sample** — Applies visual effects to camera feed
+
+**Key Components to Import:**
+- `WebcamTextureManager` — Camera texture access (left/right eye, resolution control)
+- `PassthroughCameraPermissions` — Runtime permission management
+- `PassthroughCameraUtils` — Screen point → world ray conversion
+- `EnvironmentRaycastManager` — 2D→3D position raycasting
+- `EnvironmentDepthManager` — Depth data provider for raycasts
+
+**Dependencies:**
+- Unity Sentis package (`com.unity.sentis`) — Required for AI sample scenes
+- Meta XR All-in-One SDK — Core AR/MR functionality
+
+**Sightline Adaptation Strategy:**
+- Replace ZXing QR detection → **Gemini Vision API** (landmark identification)
+- Keep Environment Raycast/Depth Managers → **2D→3D conversion** (exact same approach)
+- Reuse Webcam Texture Manager → **Camera frame capture**
+- Adapt POI detection script from video's QR code approach → **POI anchoring**
 
 ## Development Tools
 

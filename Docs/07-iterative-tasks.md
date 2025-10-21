@@ -30,13 +30,13 @@ This plan gets you from zero to a field-testable demo suitable for CCMF applicat
 
 **Acceptance:** Phone app shows AR card anchored to Clock Tower GPS location, <1s latency
 
-### Day 5: Vuforia Integration (Blocks 10-13)
-- **Block 10:** Add Vuforia SDK to Unity, import Image Target (printed Clock Tower poster)
-- **Block 11:** Quest 3 platform switch, enable passthrough mode
-- **Block 12:** Capture camera frame → send to `/identify` (image), display confidence
-- **Block 13:** Low confidence UI: amber border + 2 disambiguation chips for <0.7 confidence
+### Day 5: Quest 3 + Passthrough Camera API (Blocks 10-13)
+- **Block 10:** Quest 3 project setup: Meta XR All-in-One SDK, Project Setup Tool, Building Blocks (Passthrough)
+- **Block 11:** Import Passthrough Camera API samples from Meta GitHub repo, add Sentis package
+- **Block 12:** Configure Webcam Texture Manager + Environment Raycast/Depth Managers for 2D→3D conversion
+- **Block 13:** Implement POI detection script (adapt video's QR approach): camera frame → Gemini Vision API → 2D center → raycast → 3D pose → anchor AR card
 
-**Acceptance:** Quest 3 recognizes poster, anchors card, shows confidence metric
+**Acceptance:** Quest 3 camera access working, 2D→3D conversion functioning, AR card anchors to detected POI position
 
 ### Day 6: Polish & Filming (Blocks 14-17)
 - **Block 14:** Tap-to-lock fallback when geo/vision fails, "Re-aim to lock" state
@@ -624,6 +624,301 @@ The following sections provide step-by-step implementation details for each bloc
 - [x] `api.http` has 4 sample requests
 - [x] `field-notes.md` template created
 - [x] Files in correct folders
+
+---
+
+## Day 5: Quest 3 + Passthrough Camera API Implementation
+
+### Block 10: Quest 3 Project Setup with Meta XR SDK
+**Estimated Time:** 40 minutes
+
+**Prerequisites:**
+- Unity 2022.3.58 (or Unity 6.0.38) installed
+- Meta Quest 3 with OS v74+ (check in Settings → About)
+
+**Steps:**
+1. Create new Unity project (3D Core template)
+   - Project name: `SightlineQuest3`
+   - Location: `ClientUnity/`
+2. Install Meta XR All-in-One SDK:
+   - Window → Package Manager
+   - Add package from git URL: `https://github.com/oculus-samples/Unity-Movement.git`
+   - Or download from Meta developer portal
+3. Configure project for Quest 3:
+   - Meta XR Tools → Project Setup Tool
+   - In **Meta XR Plugin Management**, install and add Oculus
+   - Click "Fix All" for all issues
+   - Apply all recommended settings
+4. Configure Android build:
+   - File → Build Settings → Android
+   - Switch Platform
+   - Texture Compression: ASTC
+5. Add Passthrough capability:
+   - Meta XR Tools → Building Blocks
+   - Add "Passthrough" block
+   - Delete Main Camera (Passthrough includes camera)
+6. Test build on Quest 3:
+   - Build and Run (Quest 3 connected via USB)
+   - Should see empty passthrough scene
+
+**Acceptance Criteria:**
+- [x] Unity project builds to Quest 3 without errors
+- [x] Passthrough mode working on device
+- [x] Meta XR SDK v7+ installed
+
+---
+
+### Block 11: Import Passthrough Camera API Samples
+**Estimated Time:** 40 minutes
+
+**Steps:**
+1. Clone Meta's Passthrough Camera API samples:
+   ```bash
+   git clone https://github.com/oculus-samples/Unity-PassthroughCameraAPI.git
+   cd Unity-PassthroughCameraAPI
+   ```
+2. Import samples into your project:
+   - Open `Unity-PassthroughCameraAPI/Assets/PassthroughCameraAPISamples/` folder
+   - Drag `PassthroughCameraAPISamples` folder into your Unity `Assets/` folder
+3. Install Sentis package (required for samples):
+   - Window → Package Manager → Add package by name
+   - Name: `com.unity.sentis`
+   - Click "Add"
+4. Fix import errors (if any):
+   - In `Assets/PassthroughCameraAPISamples/`, delete duplicate scripts
+   - Keep only `WebcamTextureManager` and `PassthroughCameraPermissions`
+5. Verify samples imported:
+   - Check for `WebcamTextureManager` prefab in Project window
+   - Check for example scenes (CameraViewer, CameraToWorld, etc.)
+
+**Acceptance Criteria:**
+- [x] Passthrough Camera API samples imported
+- [x] Sentis package installed
+- [x] No compiler errors in Console
+
+---
+
+### Block 12: Configure Camera Access & 2D→3D Conversion
+**Estimated Time:** 40 minutes
+
+**Steps:**
+1. Add Webcam Texture Manager to scene:
+   - Drag `WebcamTextureManager` prefab from samples into Hierarchy
+   - Inspector settings:
+     - Camera Eye: `LeftEye` (or `RightEye`)
+     - Resolution: `Preset3_1280x960` (default, highest quality)
+2. Inspect scripts on prefab:
+   - **WebcamTextureManager**: Provides camera texture access
+   - **PassthroughCameraPermissions**: Manages runtime permissions
+3. Add Environment Raycast Manager:
+   - Create empty GameObject: "EnvironmentManagers"
+   - Add Component → `OVRSceneManager` (Meta XR)
+   - Add Component → `EnvironmentRaycastManager` (from samples or custom)
+4. Add Environment Depth Manager:
+   - On same "EnvironmentManagers" object
+   - Add Component → `EnvironmentDepthManager`
+   - This enables depth data for raycasting
+5. Create test script to verify camera access:
+   ```csharp
+   // Assets/Scripts/CameraTest.cs
+   using UnityEngine;
+   using PassthroughCameraSamples; // from imported samples
+   
+   public class CameraTest : MonoBehaviour
+   {
+       public WebcamTextureManager webcamManager;
+       
+       void Update()
+       {
+           if (webcamManager.webcamTexture != null)
+           {
+               Debug.Log($"Camera active: {webcamManager.webcamTexture.width}x{webcamManager.webcamTexture.height}");
+           }
+       }
+   }
+   ```
+6. Attach script to empty GameObject, reference `WebcamTextureManager`
+7. Build and test on Quest 3:
+   - Grant camera permissions when prompted
+   - Check logs for camera resolution output
+
+**Acceptance Criteria:**
+- [x] Camera texture accessible in Unity
+- [x] Environment Raycast Manager configured
+- [x] Logs show camera resolution (1280x960)
+
+---
+
+### Block 13: POI Detection with Vision AI & AR Anchoring
+**Estimated Time:** 40 minutes
+
+**Steps:**
+1. Create POI detection script (adapted from video's QR detection):
+   ```csharp
+   // Assets/Scripts/POIDetection.cs
+   using System.Collections;
+   using System.Collections.Generic;
+   using UnityEngine;
+   using PassthroughCameraSamples;
+   using UnityEngine.Networking;
+   
+   public class POIDetection : MonoBehaviour
+   {
+       [SerializeField] private WebcamTextureManager webcamManager;
+       [SerializeField] private EnvironmentRaycastManager raycastManager;
+       [SerializeField] private int scanFrameFrequency = 10; // scan every N frames
+       
+       private bool isCameraReady = false;
+       private Dictionary<string, Transform> poiObjects = new Dictionary<string, Transform>();
+       
+       // POI Target structure
+       [System.Serializable]
+       public struct POITarget
+       {
+           public string poiId; // e.g., "clock_tower"
+           public Transform arCard; // AR card prefab instance
+       }
+       
+       [SerializeField] private List<POITarget> poiTargets = new List<POITarget>();
+       
+       IEnumerator Start()
+       {
+           // Wait for camera to initialize
+           while (webcamManager.webcamTexture == null)
+           {
+               yield return null;
+           }
+           
+           isCameraReady = true;
+           
+           // Populate dictionary for fast lookup
+           foreach (var target in poiTargets)
+           {
+               poiObjects[target.poiId] = target.arCard;
+           }
+       }
+       
+       void Update()
+       {
+           if (!isCameraReady) return;
+           if (Time.frameCount % scanFrameFrequency != 0) return;
+           
+           // Get camera texture
+           var camTexture = webcamManager.webcamTexture;
+           if (camTexture == null || camTexture.width < 16 || camTexture.height < 16)
+           {
+               return;
+           }
+           
+           // Capture frame for vision API
+           Texture2D frame = new Texture2D(camTexture.width, camTexture.height);
+           frame.SetPixels32(camTexture.GetPixels32());
+           frame.Apply();
+           
+           // Convert to base64 (for API call)
+           byte[] imageBytes = frame.EncodeToJPG(75);
+           string base64Image = System.Convert.ToBase64String(imageBytes);
+           
+           // Call backend /identify endpoint
+           StartCoroutine(IdentifyPOI(base64Image, camTexture.width, camTexture.height));
+           
+           Destroy(frame); // cleanup
+       }
+       
+       IEnumerator IdentifyPOI(string base64Image, int textureWidth, int textureHeight)
+       {
+           string apiUrl = "http://localhost:3000/identify"; // TODO: use production URL
+           
+           // Create JSON request
+           string jsonData = $"{{\"image\":\"{base64Image}\"}}";
+           
+           using (UnityWebRequest request = UnityWebRequest.Post(apiUrl, jsonData, "application/json"))
+           {
+               yield return request.SendWebRequest();
+               
+               if (request.result == UnityWebRequest.Result.Success)
+               {
+                   string responseText = request.downloadHandler.text;
+                   var response = JsonUtility.FromJson<IdentifyResponse>(responseText);
+                   
+                   // Check if POI exists in our targets
+                   if (poiObjects.TryGetValue(response.poiId, out Transform arCard))
+                   {
+                       // Calculate 3D position from screen center
+                       Vector2Int screenCenter = new Vector2Int(textureWidth / 2, textureHeight / 2);
+                       Pose worldPose = ConvertScreenPointToWorldPoint(screenCenter);
+                       
+                       // Position AR card at detected location
+                       arCard.SetPositionAndRotation(worldPose.position, worldPose.rotation);
+                       arCard.gameObject.SetActive(true);
+                       
+                       Debug.Log($"POI detected: {response.name} (confidence: {response.confidence})");
+                   }
+               }
+               else
+               {
+                   Debug.LogError($"API Error: {request.error}");
+               }
+           }
+       }
+       
+       // Convert 2D screen point → 3D world position (from video tutorial)
+       private Pose ConvertScreenPointToWorldPoint(Vector2Int screenPoint)
+       {
+           // Use PassthroughCameraUtils to convert screen→ray
+           Ray ray = PassthroughCameraUtils.ScreenPointToRayInWorld(
+               webcamManager.CameraEye, 
+               screenPoint
+           );
+           
+           // Raycast into physical environment
+           if (raycastManager.Raycast(ray, out EnvironmentRaycastHit hitInfo))
+           {
+               // Return pose aligned to surface
+               Quaternion rotation = Quaternion.FromToRotation(Vector3.up, hitInfo.Normal);
+               return new Pose(hitInfo.Point, rotation);
+           }
+           
+           // Fallback: place at fixed distance
+           return new Pose(ray.origin + ray.direction * 2f, Quaternion.identity);
+       }
+       
+       [System.Serializable]
+       private struct IdentifyResponse
+       {
+           public string poiId;
+           public string name;
+           public float confidence;
+           public string requestId;
+           public int server_ms;
+       }
+   }
+   ```
+
+2. Create AR card prefab:
+   - Create 3D Object → Quad (for card background)
+   - Add TextMeshPro text for POI name/info
+   - Add leader line (LineRenderer from anchor to card)
+   - Save as Prefab: `Prefabs/ARCard.prefab`
+
+3. Configure POI Detection in scene:
+   - Create empty GameObject: "POIDetection"
+   - Attach `POIDetection.cs` script
+   - Reference `WebcamTextureManager` and `EnvironmentRaycastManager`
+   - Add POI targets in Inspector:
+     - POI ID: "clock_tower"
+     - AR Card: drag ARCard prefab instance
+
+4. Build and test on Quest 3:
+   - Point at Clock Tower (or printed poster for testing)
+   - AR card should anchor to detected position
+   - Check logs for confidence scores
+
+**Acceptance Criteria:**
+- [x] Vision API returns POI identification
+- [x] 2D→3D conversion working via raycast
+- [x] AR card anchors to calculated 3D position
+- [x] Confidence displayed in debug overlay
 
 ---
 
