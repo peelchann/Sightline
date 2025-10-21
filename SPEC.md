@@ -77,12 +77,76 @@ A 60–90s clip where:
   "id": "clock_tower",
   "name": "Clock Tower",
   "aliases": ["Tsim Sha Tsui Clock Tower", "KCR Clock Tower"],
-  "lat": 22.2946,
-  "lng": 114.1699,
+  "coords": {
+    "lat": 22.2946,
+    "lng": 114.1699,
+    "alt": 7.2
+  },
   "year": 1915,
   "blurb": "Former Kowloon-Canton Railway terminus landmark.",
-  "snapshots": ["/img/clock_tower_1.jpg"],
-  "bounds_m": 60
+  "assets": {
+    "photo": "/img/clock_tower_1.jpg"
+  },
+  "bounds_m": 60,
+  "height_m": null
+}
+```
+
+### API: POST `/notes` (Phase A - Month 3+)
+
+**Purpose:** Create user-generated notes ("XR love-locks") anchored to locations
+
+**Request Body:**
+```json
+{
+  "anchor": {
+    "type": "geo",
+    "lat": 22.2946,
+    "lng": 114.1699,
+    "alt": 7.2,
+    "sigma_m": 3.5
+  },
+  "content": {
+    "text": "Met here in 2012 💛",
+    "sticker": "lock_gold"
+  },
+  "visibility": "public"
+}
+```
+
+**200 OK Response:**
+```json
+{
+  "note_id": "note_abc123",
+  "created_at": "2026-03-15T14:30:00Z",
+  "requestId": "uuid-here",
+  "server_ms": 45
+}
+```
+
+### API: POST `/sam2/segment` (Phase B - Optional)
+
+**Purpose:** SAM-2 segmentation for part highlights
+
+**Request Body:**
+```json
+{
+  "image_base64": "...",
+  "prompt": {
+    "type": "point|box|text",
+    "value": [x, y]
+  }
+}
+```
+
+**200 OK Response:**
+```json
+{
+  "polygons": [
+    [[x1, y1], [x2, y2], ...],
+    [[x3, y3], ...]
+  ],
+  "server_ms": 320
 }
 ```
 
@@ -163,11 +227,23 @@ public record AnswerDto(string name, int? year, string blurb, double distance_m,
 
 ## Backlog (not for v0)
 
-- Voice I/O; TTS.
-- Save list; local persistence.
-- iOS ARKit `ARGeoAnchor` parity.
-- Segmentation (SAM-style) and target locking.
-- Analytics (heatmaps/dwell).
+### Phase A (CCMF, Month 2-6)
+- Far-field skyline anchoring (IFC @ 2km bearing billboard)
+- Confidence state machine (Green/Amber/Grey)
+- Mission Engine v1 (JSON-authored steps + quiz)
+- Save/Share functionality
+- Notes API (`/notes` - XR love-locks)
+- Room-Pack v0 (Vuforia Area Target for 1 room)
+
+### Phase B (CIP, Month 7-18)
+- Voice I/O; TTS
+- SAM-2 segmentation for part highlights
+- Mission Composer (web-based creator tool)
+- Analytics dashboard (sessions, dwell, completion, latency heatmap)
+- iOS ARKit `ARGeoAnchor` parity
+- visionOS port
+- Creator routes marketplace
+- Sponsored layers (opt-in)
 
 ---
 

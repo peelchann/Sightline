@@ -198,11 +198,11 @@ Response: {
 - **(Block 8)** ARCore Geospatial: hardcode Clock Tower anchor
 - **(Block 9)** Hook geo path → call `/identify` with GPS → populate card
 
-### Day 5: Vuforia Integration
-- **(Block 10)** Add Vuforia SDK, Image Target (printed poster)
-- **(Block 11)** Quest 3 platform switch, passthrough enabled
-- **(Block 12)** Capture frame → `/identify` (image), display confidence
-- **(Block 13)** Low confidence UI: amber + 2 disambiguation chips
+### Day 5: Quest 3 + Passthrough Camera API
+- **(Block 10)** Quest 3 project setup: Meta XR All-in-One SDK v7+, Project Setup Tool, Building Blocks (Passthrough)
+- **(Block 11)** Import Passthrough Camera API samples from Meta GitHub repo (`Unity-PassthroughCameraAPI`), install Sentis package
+- **(Block 12)** Configure Webcam Texture Manager (camera access) + Environment Raycast Manager + Environment Depth Manager (2D→3D conversion)
+- **(Block 13)** Implement POI detection script: camera frame → Gemini Vision API → calculate 2D center → raycast to 3D pose → anchor AR card at position
 
 ### Day 6: Polish & Film
 - **(Block 14)** Tap-to-lock fallback, "Re-aim to lock" state

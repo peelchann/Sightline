@@ -7,6 +7,10 @@ Phones are a testbed; the product targets **glasses**.
 
 On-object answers: **see → geo-anchor → ask → AR overlay**. This project is built for the **Cyberport CCMF** funding application, with a working MVP demo as supporting evidence.
 
+**Hybrid AR Anchoring Strategy:**
+- **Outdoor (Phone):** ARCore Geospatial API (GPS-based, fast)
+- **Indoor (Quest 3):** Passthrough Camera API + Gemini Vision (image-based, accurate)
+
 ## Project Structure
 
 ```
@@ -27,11 +31,13 @@ sightline/
    ├─ 03-trends-devices.md
    ├─ 04-cyberport-map.md
    ├─ 05-application-outline.md
-   ├─ 06-tech-plan.md
-   ├─ 07-iterative-tasks.md
+   ├─ 06-tech-plan.md          # Includes Quest 3 Passthrough Camera API details
+   ├─ 07-iterative-tasks.md     # Includes Quest 3 setup steps (Blocks 10-13)
    ├─ 08-risk-register.md
    ├─ 09-60sec-pitch.md
-   └─ 10-agentic-research-plan.md
+   ├─ 10-agentic-research-plan.md
+   ├─ UPDATE-SUMMARY.md          # Changelog for hybrid AR strategy
+   └─ UPDATE-SUMMARY-QUEST3.md   # Quest 3 Passthrough Camera API update
 ```
 
 ## Quick Start
@@ -51,16 +57,50 @@ Open `http://localhost:5173`. Click **What is this?** to fetch `/answer`.
 
 ## API
 
-**GET** `/answer?lat=22.2946&lng=114.1699`
+### POST `/identify`
+Identify POI from GPS coordinates OR image
 
-Returns:
+**Request (GPS-based):**
 ```json
 {
+  "lat": 22.2946,
+  "lng": 114.1699
+}
+```
+
+**Request (Vision-based):**
+```json
+{
+  "image": "data:image/jpeg;base64,..."
+}
+```
+
+**Response:**
+```json
+{
+  "poiId": "clock_tower",
   "name": "Clock Tower",
+  "confidence": 0.95,
+  "requestId": "uuid-here",
+  "server_ms": 142
+}
+```
+
+### GET `/poi/:id`
+Fetch full POI details
+
+**Response:**
+```json
+{
+  "id": "clock_tower",
+  "name": "Clock Tower",
+  "aliases": ["Tsim Sha Tsui Clock Tower", "KCR Clock Tower"],
+  "lat": 22.2946,
+  "lng": 114.1699,
   "year": 1915,
-  "blurb": "Former KCR terminus landmark.",
-  "distance_m": 23.4,
-  "latency_ms": 142
+  "blurb": "Former Kowloon-Canton Railway terminus landmark.",
+  "snapshots": ["/img/clock_tower_1.jpg"],
+  "bounds_m": 60
 }
 ```
 
