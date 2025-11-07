@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Sightline WebAR - Hong Kong Landmarks</title>
+  
+  <!-- A-Frame library (VR/AR framework) -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  
+  <!-- AR.js library (GPS-based AR) -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  
+  <!-- Loading overlay -->
+  <div id="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <h2>Initializing AR...</h2>
+      <p id="loading-status">Requesting permissions...</p>
+    </div>
+  </div>
+  
+  <!-- GPS accuracy indicator -->
+  <div id="gps-info">
+    <div id="gps-accuracy">GPS: Waiting...</div>
+    <div id="gps-coords">Lat: --, Lng: --</div>
+  </div>
+  
+  <!-- Instructions panel -->
+  <div id="instructions">
+    <h3>📍 Point your camera at landmarks</h3>
+    <p>Walk around to discover Hong Kong heritage sites</p>
+    <button id="close-instructions">Got it!</button>
+  </div>
+  
+  <!-- POI counter -->
+  <div id="poi-counter">
+    <span id="poi-count">0</span> landmarks nearby
+  </div>
+  
+  <!-- A-Frame AR Scene -->
+  <a-scene
+    id="ar-scene"
+    vr-mode-ui="enabled: false"
+    embedded
+    arjs="sourceType: webcam; 
+          videoTexture: true; 
+          debugUIEnabled: false;
+          detectionMode: mono_and_matrix;
+          matrixCodeType: 3x3;
+          gpsMinDistance: 5;
+          gpsTimeInterval: 5000;">
+    
+    <!-- Clock Tower POI (22.2946°N, 114.1699°E) -->
+    <a-entity 
+      class="poi-entity"
+      id="poi-clock-tower"
+      gps-entity-place="latitude: 22.2946; longitude: 114.1699">
+      
+      <!-- Card container -->
+      <a-entity class="ar-card">
+        <!-- Background plane -->
+        <a-plane 
+          position="0 0 0" 
+          rotation="0 0 0" 
+          width="3.5" 
+          height="3" 
+          color="#FFFFFF" 
+          opacity="0.95"
+          shader="flat"
+          side="double">
+        </a-plane>
+        
+        <!-- Colored header bar -->
+        <a-plane
+          position="0 1.2 0.01"
+          width="3.5"
+          height="0.6"
+          color="#4A90E2"
+          opacity="0.9">
+        </a-plane>
+        
+        <!-- Title -->
+        <a-text 
+          value="Clock Tower" 
+          position="0 1.2 0.02" 
+          align="center" 
+          color="#FFFFFF" 
+          width="6"
+          shader="msdf"
+          font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/berkshireswash/BerkshireSwash-Regular.json">
+        </a-text>
+        
+        <!-- Year badge -->
+        <a-circle
+          position="0 0.5 0.01"
+          radius="0.35"
+          color="#FFD700"
+          opacity="0.9">
+        </a-circle>
+        <a-text 
+          value="1915" 
+          position="0 0.5 0.02" 
+          align="center" 
+          color="#000000" 
+          width="3.5">
+        </a-text>
+        
+        <!-- Description -->
+        <a-text 
+          value="Former Kowloon-Canton\nRailway terminus.\n\nOne of Hong Kong's\noldest landmarks." 
+          position="0 -0.3 0.01" 
+          align="center" 
+          color="#333333" 
+          width="6"
+          line-height="50"
+          wrap-count="25">
+        </a-text>
+        
+        <!-- Distance indicator (updated dynamically) -->
+        <a-text 
+          class="distance-text"
+          value="Distance: calculating..." 
+          position="0 -1.1 0.01" 
+          align="center" 
+          color="#888888" 
+          width="5">
+        </a-text>
+      </a-entity>
+      
+    </a-entity>
+    
+    <!-- Star Ferry POI (22.2800°N, 114.1587°E) -->
+    <a-entity 
+      class="poi-entity"
+      id="poi-star-ferry"
+      gps-entity-place="latitude: 22.2800; longitude: 114.1587">
+      
+      <a-entity class="ar-card">
+        <a-plane 
+          position="0 0 0" 
+          width="3.5" 
+          height="3" 
+          color="#FFFFFF" 
+          opacity="0.95"
+          shader="flat"
+          side="double">
+        </a-plane>
+        
+        <a-plane
+          position="0 1.2 0.01"
+          width="3.5"
+          height="0.6"
+          color="#E74C3C"
+          opacity="0.9">
+        </a-plane>
+        
+        <a-text 
+          value="Star Ferry" 
+          position="0 1.2 0.02" 
+          align="center" 
+          color="#FFFFFF" 
+          width="6"
+          shader="msdf"
+          font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/berkshireswash/BerkshireSwash-Regular.json">
+        </a-text>
+        
+        <a-circle
+          position="0 0.5 0.01"
+          radius="0.35"
+          color="#FFD700"
+          opacity="0.9">
+        </a-circle>
+        <a-text 
+          value="1888" 
+          position="0 0.5 0.02" 
+          align="center" 
+          color="#000000" 
+          width="3.5">
+        </a-text>
+        
+        <a-text 
+          value="Iconic ferry service\nconnecting HK Island\nand Kowloon.\n\nOperating since 1888." 
+          position="0 -0.3 0.01" 
+          align="center" 
+          color="#333333" 
+          width="6"
+          line-height="50"
+          wrap-count="25">
+        </a-text>
+        
+        <a-text 
+          class="distance-text"
+          value="Distance: calculating..." 
+          position="0 -1.1 0.01" 
+          align="center" 
+          color="#888888" 
+          width="5">
+        </a-text>
+      </a-entity>
+      
+    </a-entity>
+    
+    <!-- Avenue of Stars POI (22.2930°N, 114.1730°E) -->
+    <a-entity 
+      class="poi-entity"
+      id="poi-avenue-stars"
+      gps-entity-place="latitude: 22.2930; longitude: 114.1730">
+      
+      <a-entity class="ar-card">
+        <a-plane 
+          position="0 0 0" 
+          width="3.5" 
+          height="3" 
+          color="#FFFFFF" 
+          opacity="0.95"
+          shader="flat"
+          side="double">
+        </a-plane>
+        
+        <a-plane
+          position="0 1.2 0.01"
+          width="3.5"
+          height="0.6"
+          color="#9B59B6"
+          opacity="0.9">
+        </a-plane>
+        
+        <a-text 
+          value="Avenue of Stars" 
+          position="0 1.2 0.02" 
+          align="center" 
+          color="#FFFFFF" 
+          width="6"
+          shader="msdf"
+          font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/berkshireswash/BerkshireSwash-Regular.json">
+        </a-text>
+        
+        <a-circle
+          position="0 0.5 0.01"
+          radius="0.35"
+          color="#FFD700"
+          opacity="0.9">
+        </a-circle>
+        <a-text 
+          value="2004" 
+          position="0 0.5 0.02" 
+          align="center" 
+          color="#000000" 
+          width="3.5">
+        </a-text>
+        
+        <a-text 
+          value="Tribute to Hong Kong\nfilm industry.\n\nHonoring Bruce Lee,\nJackie Chan & more." 
+          position="0 -0.3 0.01" 
+          align="center" 
+          color="#333333" 
+          width="6"
+          line-height="50"
+          wrap-count="25">
+        </a-text>
+        
+        <a-text 
+          class="distance-text"
+          value="Distance: calculating..." 
+          position="0 -1.1 0.01" 
+          align="center" 
+          color="#888888" 
+          width="5">
+        </a-text>
+      </a-entity>
+      
+    </a-entity>
+    
+    <!-- Camera with GPS tracking -->
+    <a-camera 
+      id="ar-camera"
+      gps-camera="minDistance: 5; maxDistance: 150;" 
+      rotation-reader
+      look-controls-enabled="false"
+      wasd-controls-enabled="false">
+    </a-camera>
+    
+  </a-scene>
+  
+  <script src="app.js"></script>
+  
+</body>
+</html>
+
