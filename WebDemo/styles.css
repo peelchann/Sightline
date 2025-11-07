@@ -1,0 +1,320 @@
+/* Sightline WebAR Styles */
+/* Optimized for outdoor sunlight readability */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #000;
+  color: #fff;
+}
+
+/* Loading overlay */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease-out;
+}
+
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-content h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.loading-content p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* GPS info panel */
+#gps-info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+#gps-accuracy {
+  color: #4ADE80;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+#gps-coords {
+  color: #94A3B8;
+  font-size: 11px;
+}
+
+/* Instructions panel */
+#instructions {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  z-index: 2000;
+  max-width: 90%;
+  width: 350px;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+#instructions.hidden {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.9);
+  pointer-events: none;
+}
+
+#instructions h3 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #fff;
+}
+
+#instructions p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+#close-instructions {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+#close-instructions:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+#close-instructions:active {
+  transform: translateY(0);
+}
+
+/* POI counter */
+#poi-counter {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#poi-count {
+  font-size: 24px;
+  font-weight: bold;
+  color: #4ADE80;
+}
+
+/* A-Frame scene container */
+#ar-scene {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Hide A-Frame inspector button */
+.a-inspector-button {
+  display: none !important;
+}
+
+/* Error message */
+.error-message {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(239, 68, 68, 0.9);
+  color: #fff;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 14px;
+  z-index: 3000;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Success message */
+.success-message {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(74, 222, 128, 0.9);
+  color: #000;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 3000;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  #gps-info {
+    font-size: 10px;
+    padding: 8px 12px;
+  }
+  
+  #poi-counter {
+    font-size: 12px;
+    padding: 8px 15px;
+  }
+  
+  #poi-count {
+    font-size: 20px;
+  }
+  
+  #instructions {
+    padding: 20px;
+  }
+  
+  #instructions h3 {
+    font-size: 18px;
+  }
+  
+  #instructions p {
+    font-size: 13px;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Prevent rubber band scrolling */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  #ar-scene {
+    /* Fix for iOS Safari viewport height */
+    height: -webkit-fill-available;
+  }
+}
+
+/* High contrast mode for bright sunlight */
+@media (prefers-contrast: high) {
+  #gps-info,
+  #poi-counter,
+  #instructions {
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #fff;
+  }
+  
+  .loading-content {
+    background: rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Landscape orientation warning */
+@media (orientation: landscape) and (max-height: 500px) {
+  #instructions::after {
+    content: "📱 Rotate to portrait for best experience";
+    display: block;
+    margin-top: 15px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
+

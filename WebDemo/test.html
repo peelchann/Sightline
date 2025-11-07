@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sightline WebAR - Setup Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      min-height: 100vh;
+    }
+    .container {
+      background: rgba(0,0,0,0.6);
+      padding: 30px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+    }
+    h1 { margin-top: 0; }
+    .status { margin: 20px 0; padding: 15px; border-radius: 8px; }
+    .pass { background: rgba(74, 222, 128, 0.2); border: 2px solid #4ADE80; }
+    .fail { background: rgba(239, 68, 68, 0.2); border: 2px solid #EF4444; }
+    .pending { background: rgba(251, 191, 36, 0.2); border: 2px solid #FBBF24; }
+    button {
+      background: #4ADE80;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover { background: #22C55E; }
+    .info { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 10px 0; }
+    code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Sightline WebAR Setup Test</h1>
+    
+    <div class="info">
+      <strong>Purpose:</strong> Verify your browser supports WebAR before testing at actual locations.
+    </div>
+    
+    <h2>Browser Support Check</h2>
+    <div id="geolocation-status" class="status pending">⏳ Checking Geolocation API...</div>
+    <div id="camera-status" class="status pending">⏳ Checking Camera API...</div>
+    <div id="orientation-status" class="status pending">⏳ Checking Orientation API...</div>
+    <div id="webgl-status" class="status pending">⏳ Checking WebGL Support...</div>
+    
+    <h2>Device Information</h2>
+    <div class="info">
+      <div><strong>User Agent:</strong> <span id="ua"></span></div>
+      <div><strong>Platform:</strong> <span id="platform"></span></div>
+      <div><strong>Language:</strong> <span id="language"></span></div>
+      <div><strong>Online:</strong> <span id="online"></span></div>
+      <div><strong>Screen:</strong> <span id="screen"></span></div>
+    </div>
+    
+    <h2>Permission Tests</h2>
+    <button onclick="testCamera()">📷 Test Camera</button>
+    <button onclick="testGPS()">📍 Test GPS</button>
+    <button onclick="testOrientation()">📱 Test Orientation</button>
+    <div id="test-results" class="info" style="display: none; margin-top: 15px;"></div>
+    
+    <h2>Ready to Launch</h2>
+    <div class="info">
+      <p>If all checks pass, you're ready to test the WebAR application!</p>
+      <button onclick="window.location.href='index.html'" style="background: #667eea; color: #fff; font-size: 18px; padding: 15px 30px;">
+        🚀 Launch WebAR Demo
+      </button>
+    </div>
+    
+    <h2>Files Check</h2>
+    <div id="files-status" class="status pending">⏳ Checking files...</div>
+  </div>
+
+  <script>
+    // Check browser support
+    function checkSupport() {
+      // Geolocation
+      const hasGeo = 'geolocation' in navigator;
+      updateStatus('geolocation-status', hasGeo, 'Geolocation API');
+      
+      // Camera
+      const hasCam = 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
+      updateStatus('camera-status', hasCam, 'Camera API (getUserMedia)');
+      
+      // Orientation
+      const hasOrient = 'DeviceOrientationEvent' in window;
+      updateStatus('orientation-status', hasOrient, 'Device Orientation API');
+      
+      // WebGL
+      const canvas = document.createElement('canvas');
+      const hasWebGL = !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+      updateStatus('webgl-status', hasWebGL, 'WebGL');
+    }
+    
+    function updateStatus(id, supported, name) {
+      const el = document.getElementById(id);
+      if (supported) {
+        el.className = 'status pass';
+        el.innerHTML = `✅ ${name} supported`;
+      } else {
+        el.className = 'status fail';
+        el.innerHTML = `❌ ${name} NOT supported`;
+      }
+    }
+    
+    function showResult(message, success = true) {
+      const div = document.getElementById('test-results');
+      div.style.display = 'block';
+      div.innerHTML = success ? `✅ ${message}` : `❌ ${message}`;
+      div.style.background = success ? 'rgba(74, 222, 128, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+    }
+    
+    async function testCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        stream.getTracks().forEach(track => track.stop());
+        showResult('Camera access granted! WebAR will work.', true);
+      } catch (error) {
+        showResult(`Camera error: ${error.message}`, false);
+      }
+    }
+    
+    function testGPS() {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          showResult(`GPS working! Position: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)} (±${position.coords.accuracy.toFixed(1)}m)`, true);
+        },
+        (error) => {
+          showResult(`GPS error: ${error.message}`, false);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+    
+    async function testOrientation() {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const response = await DeviceOrientationEvent.requestPermission();
+          showResult(response === 'granted' ? 'Orientation permission granted!' : 'Orientation permission denied', response === 'granted');
+        } catch (error) {
+          showResult(`Orientation error: ${error.message}`, false);
+        }
+      } else {
+        showResult('Orientation API available (no permission needed on Android)', true);
+      }
+    }
+    
+    // Check files exist
+    async function checkFiles() {
+      const files = ['index.html', 'styles.css', 'app.js', 'README.md'];
+      let allExist = true;
+      
+      for (const file of files) {
+        try {
+          const response = await fetch(file, { method: 'HEAD' });
+          if (!response.ok) allExist = false;
+        } catch {
+          allExist = false;
+        }
+      }
+      
+      const el = document.getElementById('files-status');
+      if (allExist) {
+        el.className = 'status pass';
+        el.innerHTML = '✅ All required files present';
+      } else {
+        el.className = 'status fail';
+        el.innerHTML = '❌ Some files missing';
+      }
+    }
+    
+    // Display device info
+    document.getElementById('ua').textContent = navigator.userAgent;
+    document.getElementById('platform').textContent = navigator.platform;
+    document.getElementById('language').textContent = navigator.language;
+    document.getElementById('online').textContent = navigator.onLine ? 'Yes' : 'No';
+    document.getElementById('screen').textContent = `${screen.width}x${screen.height}`;
+    
+    // Run checks
+    checkSupport();
+    checkFiles();
+  </script>
+</body>
+</html>
+
