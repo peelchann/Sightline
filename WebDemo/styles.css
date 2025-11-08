@@ -180,6 +180,34 @@ body {
   color: #4ADE80;
 }
 
+/* Help button */
+.help-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 950;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.help-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.7);
+}
+
+.help-btn:active {
+  transform: scale(0.95);
+}
+
 /* A-Frame scene container */
 #ar-scene {
   width: 100vw;
