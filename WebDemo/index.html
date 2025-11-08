@@ -66,11 +66,18 @@
     </div>
   </div>
   
-  <!-- GPS accuracy indicator -->
+  <!-- GPS & Heading indicators -->
   <div id="gps-info">
     <div id="gps-accuracy">GPS: Waiting...</div>
     <div id="gps-coords">Lat: --, Lng: --</div>
+    <div id="heading-display">Heading: --</div>
   </div>
+  
+  <!-- Calibration toast (top center) -->
+  <div id="calibration-toast" class="hidden"></div>
+  
+  <!-- iOS Permission button -->
+  <button id="permission-btn" style="display: none;">Enable Motion & Orientation</button>
   
   <!-- POI counter -->
   <div id="poi-counter">
@@ -279,6 +286,20 @@
       <a-text value="1888" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
     </a-entity>
     
+    <!-- Hong Kong Palace Museum -->
+    <a-entity 
+      gps-entity-place="latitude: 22.3015; longitude: 114.1605"
+      data-poi-id="hk-palace-museum"
+      class="poi-card"
+    >
+      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="HK Palace Museum" color="#000000" align="center" width="7" position="0 1 0.01" font="roboto"></a-text>
+      <a-text value="Chinese art from Forbidden City" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#8b5cf6" align="center" width="6" position="0 -1.5 0.01"></a-text>
+      <a-circle radius="0.8" color="#8b5cf6" position="3 1.5 0.01"></a-circle>
+      <a-text value="2022" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
+    </a-entity>
+    
     <!-- Camera with GPS -->
     <a-camera 
       gps-camera="minDistance: 5; maxDistance: 5000; simulateLatitude: 0; simulateLongitude: 0;"
@@ -288,6 +309,6 @@
     
   </a-scene>
   
-  <script src="app.js"></script>
+  <script src="app-enhanced-imu.js"></script>
 </body>
 </html>
