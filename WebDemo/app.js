@@ -1,25 +1,25 @@
-// Sightline WebAR - IMU/Compass Hands-Free Edition
-// Look-to-aim AR with real-time orientation tracking
+// Sightline WebAR - IMU Heading + Hands-Free Experience
+// Real-time compass tracking with look-to-aim navigation
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 const CONFIG = {
-  MAX_DISTANCE: 5000, // meters - skyline landmarks
-  UPDATE_INTERVAL: 500, // ms - faster updates for smooth heading
-  GPS_TIMEOUT: 27000, // ms - GPS timeout
-  NEARBY_THRESHOLD: 50, // meters
-  MID_RANGE: 200, // meters
-  FAR_RANGE: 1000, // meters - skyline threshold
-  FOV: 60, // degrees - field of view cone
-  HEADING_SMOOTHING: 0.15, // alpha for exponential moving average
-  HEADING_UPDATE_INTERVAL: 100, // ms - high frequency for smooth rotation
-  CALIBRATION_VARIANCE_THRESHOLD: 30, // degrees - if variance exceeds this, show calibration toast
+  MAX_DISTANCE: 5000,
+  UPDATE_INTERVAL: 100, // Faster updates for IMU (was 1000ms)
+  HEADING_UPDATE_INTERVAL: 50, // IMU heading updates (20 FPS)
+  GPS_TIMEOUT: 27000,
+  NEARBY_THRESHOLD: 50,
+  MID_RANGE: 200,
+  FAR_RANGE: 1000,
+  FOV: 60,
+  HEADING_SMOOTHING: 0.15, // Exponential moving average alpha
+  CALIBRATION_VARIANCE_THRESHOLD: 15, // degrees - if variance > this, show calibration hint
 };
 
 // ============================================================================
-// POI DATA - Including Hong Kong Palace Museum
+// POI DATA - Complete with Palace Museum
 // ============================================================================
 
 const POIS = [
@@ -30,7 +30,7 @@ const POIS = [
     lat: 22.2946,
     lng: 114.1699,
     year: 1915,
-    description: 'Former Kowloon-Canton Railway terminus',
+    description: 'Former railway terminus',
     category: 'landmark',
     range: 'mid'
   },
@@ -40,7 +40,7 @@ const POIS = [
     lat: 22.2937,
     lng: 114.1703,
     year: 1888,
-    description: 'Iconic ferry service since 1888',
+    description: 'Iconic ferry service',
     category: 'transport',
     range: 'mid'
   },
@@ -50,11 +50,11 @@ const POIS = [
     lat: 22.2930,
     lng: 114.1730,
     year: 2004,
-    description: 'Tribute to HK film industry',
+    description: 'HK film industry tribute',
     category: 'landmark',
     range: 'mid'
   },
-  // Skyline POIs
+  // Victoria Harbour Skyline POIs
   {
     id: 'ifc',
     name: 'IFC Tower',
@@ -72,10 +72,21 @@ const POIS = [
     lat: 22.3069,
     lng: 114.1617,
     year: 2010,
-    description: 'International Commerce Centre • 484m',
+    description: 'Intl Commerce Centre • 484m',
     category: 'landmark',
     range: 'far',
     elevation: 484
+  },
+  {
+    id: 'palace-museum',
+    name: 'Hong Kong Palace Museum',
+    lat: 22.3015,
+    lng: 114.1603,
+    year: 2022,
+    description: 'Chinese imperial art & culture',
+    category: 'museum',
+    range: 'mid',
+    elevation: 40
   },
   {
     id: 'mplus',
@@ -106,28 +117,23 @@ const POIS = [
     description: 'Central pier terminal',
     category: 'transport',
     range: 'mid'
-  },
-  // NEW: Hong Kong Palace Museum
-  {
-    id: 'hk-palace-museum',
-    name: 'HK Palace Museum',
-    lat: 22.3015,
-    lng: 114.1607,
-    year: 2022,
-    description: 'Chinese art & Imperial treasures',
-    category: 'museum',
-    range: 'mid',
-    elevation: 40
   }
 ];
 
 // ============================================================================
-// PRESET LOCATIONS
+// PRESET LOCATIONS - West Kowloon Added
 // ============================================================================
 
 const PRESETS = {
-  'freespace': {
+  'wkcd-freespace': {
     name: 'West Kowloon Freespace',
+    lat: 22.3045,
+    lng: 114.1595,
+    heading: 105, // Facing Victoria Harbour
+    description: 'WKCD lawn facing Victoria Harbour skyline'
+  },
+  'freespace': {
+    name: 'West Kowloon (Alt)',
     lat: 22.3045,
     lng: 114.1595,
     heading: 120,
@@ -150,210 +156,280 @@ const PRESETS = {
 };
 
 // ============================================================================
-// ORIENTATION MANAGER - IMU/Compass Heading Pipeline
+// ORIENTATION MANAGER - IMU/Compass Heading
 // ============================================================================
 
 const OrientationManager = {
-  enabled: false,
-  heading: 0,
+  // State
+  currentHeading: 0,
   smoothedHeading: 0,
-  lastHeading: 0,
-  headingBuffer: [],
-  bufferSize: 10,
+  headingSource: 'none', // 'webkit', 'absolute', 'geolocation', 'manual', 'none'
+  calibrationState: 'unknown', // 'good', 'poor', 'unknown'
+  isCalibrating: false,
   permissionGranted: false,
-  calibrationNeeded: false,
-  source: 'none', // 'webkit', 'absolute', 'geolocation', 'none'
+  headingHistory: [],
+  maxHistorySize: 10,
   
-  init() {
-    console.log('🧭 Initializing OrientationManager...');
+  // Callbacks
+  onHeadingChange: null,
+  onCalibrationChange: null,
+  
+  // Initialize
+  async init(onHeadingCallback, onCalibrationCallback) {
+    this.onHeadingChange = onHeadingCallback;
+    this.onCalibrationChange = onCalibrationCallback;
     
-    // Check if iOS and needs permission
+    console.log('🧭 OrientationManager initializing...');
+    
+    // Check if iOS 13+ permission required
     if (typeof DeviceOrientationEvent !== 'undefined' && 
         typeof DeviceOrientationEvent.requestPermission === 'function') {
-      console.log('📱 iOS device detected - permission required');
-      this.showIOSPermissionUI();
+      console.log('📱 iOS 13+ detected - permission required');
+      this.showPermissionUI();
       return;
     }
     
-    // Non-iOS: Start listening immediately
+    // Start listening for orientation events
     this.startListening();
   },
   
-  showIOSPermissionUI() {
-    const permissionBtn = document.getElementById('ios-permission-btn');
-    const permissionOverlay = document.getElementById('ios-permission-overlay');
+  // Show iOS permission button
+  showPermissionUI() {
+    const permissionBtn = document.getElementById('motion-permission-btn');
+    const permissionOverlay = document.getElementById('motion-permission-overlay');
     
-    if (permissionBtn && permissionOverlay) {
+    if (permissionOverlay) {
       permissionOverlay.classList.remove('hidden');
-      
+    }
+    
+    if (permissionBtn) {
       permissionBtn.addEventListener('click', async () => {
         try {
-          const response = await DeviceOrientationEvent.requestPermission();
-          if (response === 'granted') {
-            console.log('✅ iOS motion permission granted');
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === 'granted') {
             this.permissionGranted = true;
-            permissionOverlay.classList.add('hidden');
+            if (permissionOverlay) {
+              permissionOverlay.classList.add('hidden');
+            }
             this.startListening();
-            showSuccess('Motion sensors enabled');
+            showSuccess('✅ Motion permission granted');
           } else {
-            console.warn('⚠️ iOS motion permission denied');
-            showError('Motion permission required for hands-free AR');
+            showError('Motion permission denied. App will use manual controls.');
           }
         } catch (error) {
-          console.error('❌ Error requesting permission:', error);
-          showError('Failed to enable motion sensors');
+          console.error('Permission request failed:', error);
+          showError('Could not request motion permission');
         }
       });
-    } else {
-      // Fallback if UI elements not found
-      this.startListening();
     }
   },
   
+  // Start listening to device orientation
   startListening() {
     console.log('👂 Starting orientation listeners...');
-    this.enabled = true;
     
-    // Priority 1: iOS webkitCompassHeading
+    // Primary: DeviceOrientation with compass heading (iOS Safari)
     window.addEventListener('deviceorientation', (event) => {
-      if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-        this.source = 'webkit';
-        this.updateHeading(event.webkitCompassHeading);
-      } else if (event.absolute && event.alpha !== null) {
-        // Priority 2: Absolute orientation (Android/modern browsers)
-        this.source = 'absolute';
-        const heading = this.calculateHeadingFromAlpha(event.alpha, event.beta, event.gamma);
-        this.updateHeading(heading);
-      }
+      this.handleDeviceOrientation(event);
     }, true);
     
-    // Priority 3: Geolocation heading (coarse fallback when moving)
-    navigator.geolocation.watchPosition((position) => {
-      if (position.coords.heading !== null && position.coords.heading !== undefined) {
-        if (this.source === 'none') {
-          this.source = 'geolocation';
-          this.updateHeading(position.coords.heading);
-        }
-      }
-    }, null, { enableHighAccuracy: true });
+    // Fallback: DeviceOrientationAbsolute
+    window.addEventListener('deviceorientationabsolute', (event) => {
+      this.handleDeviceOrientationAbsolute(event);
+    }, true);
+    
+    // Geolocation heading (moving only)
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
+        (position) => this.handleGeolocationHeading(position),
+        null,
+        { enableHighAccuracy: true }
+      );
+    }
     
     // Start update loop
-    setInterval(() => this.checkCalibration(), 2000);
+    setInterval(() => this.updateLoop(), CONFIG.HEADING_UPDATE_INTERVAL);
     
-    console.log(`✅ Orientation tracking active (source: ${this.source})`);
+    console.log('✅ Orientation listeners active');
   },
   
-  calculateHeadingFromAlpha(alpha, beta, gamma) {
-    // Convert device orientation to compass heading
-    // alpha: 0-360 (z-axis rotation)
-    // Adjust for device orientation
-    let heading = 360 - alpha;
-    return this.normalizeHeading(heading);
-  },
-  
-  updateHeading(rawHeading) {
-    if (!this.enabled || rawHeading === null || rawHeading === undefined || isNaN(rawHeading)) {
+  // Handle DeviceOrientation (iOS webkit compass)
+  handleDeviceOrientation(event) {
+    // iOS provides webkitCompassHeading
+    if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+      this.currentHeading = event.webkitCompassHeading;
+      this.headingSource = 'webkit';
+      this.addToHistory(this.currentHeading);
       return;
     }
     
-    // Handle wrap-around (359° → 0°)
-    let delta = rawHeading - this.lastHeading;
-    if (delta > 180) {
-      delta -= 360;
-    } else if (delta < -180) {
-      delta += 360;
+    // Standard alpha/beta/gamma
+    if (event.alpha !== null) {
+      // Convert alpha to compass heading (0-360)
+      // alpha: 0 = North, increases clockwise
+      let heading = event.alpha;
+      
+      // Adjust for device orientation
+      if (event.absolute) {
+        heading = 360 - heading; // Convert to true north
+      }
+      
+      this.currentHeading = this.normalizeHeading(heading);
+      this.headingSource = 'absolute';
+      this.addToHistory(this.currentHeading);
     }
-    
-    // Apply exponential smoothing
-    this.lastHeading = rawHeading;
-    this.smoothedHeading = this.smoothedHeading + CONFIG.HEADING_SMOOTHING * delta;
-    this.smoothedHeading = this.normalizeHeading(this.smoothedHeading);
-    
-    // Buffer for calibration variance check
-    this.headingBuffer.push(rawHeading);
-    if (this.headingBuffer.length > this.bufferSize) {
-      this.headingBuffer.shift();
-    }
-    
-    this.heading = this.smoothedHeading;
   },
   
+  // Handle DeviceOrientationAbsolute
+  handleDeviceOrientationAbsolute(event) {
+    if (event.alpha !== null && this.headingSource !== 'webkit') {
+      let heading = 360 - event.alpha; // True north
+      this.currentHeading = this.normalizeHeading(heading);
+      this.headingSource = 'absolute';
+      this.addToHistory(this.currentHeading);
+    }
+  },
+  
+  // Handle Geolocation heading (coarse fallback)
+  handleGeolocationHeading(position) {
+    if (position.coords.heading !== null && 
+        position.coords.heading !== undefined &&
+        this.headingSource === 'none') {
+      this.currentHeading = position.coords.heading;
+      this.headingSource = 'geolocation';
+      this.addToHistory(this.currentHeading);
+    }
+  },
+  
+  // Update loop - smoothing and calibration
+  updateLoop() {
+    if (this.currentHeading === null) return;
+    
+    // Apply smoothing
+    const smoothed = this.smoothHeading(this.currentHeading);
+    this.smoothedHeading = smoothed;
+    
+    // Check calibration quality
+    this.checkCalibration();
+    
+    // Callback
+    if (this.onHeadingChange) {
+      this.onHeadingChange(this.smoothedHeading, this.headingSource);
+    }
+  },
+  
+  // Smooth heading with exponential moving average
+  smoothHeading(newHeading) {
+    const oldHeading = this.smoothedHeading;
+    
+    // Handle wrap-around (359° → 0°)
+    let diff = newHeading - oldHeading;
+    
+    if (Math.abs(diff) > 180) {
+      if (diff > 0) {
+        diff -= 360;
+      } else {
+        diff += 360;
+      }
+    }
+    
+    // Exponential moving average
+    const smoothed = oldHeading + (CONFIG.HEADING_SMOOTHING * diff);
+    
+    return this.normalizeHeading(smoothed);
+  },
+  
+  // Normalize heading to [0, 360)
   normalizeHeading(heading) {
     while (heading < 0) heading += 360;
     while (heading >= 360) heading -= 360;
     return heading;
   },
   
-  checkCalibration() {
-    if (this.headingBuffer.length < this.bufferSize) return;
-    
-    // Calculate variance
-    const mean = this.headingBuffer.reduce((a, b) => a + b, 0) / this.headingBuffer.length;
-    const variance = this.headingBuffer.reduce((sum, val) => {
-      const diff = Math.abs(val - mean);
-      // Handle wrap-around in variance calculation
-      const wrappedDiff = Math.min(diff, 360 - diff);
-      return sum + wrappedDiff * wrappedDiff;
-    }, 0) / this.headingBuffer.length;
-    
-    const stdDev = Math.sqrt(variance);
-    
-    if (stdDev > CONFIG.CALIBRATION_VARIANCE_THRESHOLD) {
-      if (!this.calibrationNeeded) {
-        this.calibrationNeeded = true;
-        showCalibrationToast();
-      }
-    } else {
-      this.calibrationNeeded = false;
+  // Add to history for variance calculation
+  addToHistory(heading) {
+    this.headingHistory.push(heading);
+    if (this.headingHistory.length > this.maxHistorySize) {
+      this.headingHistory.shift();
     }
   },
   
+  // Check calibration quality
+  checkCalibration() {
+    if (this.headingHistory.length < 5) return;
+    
+    // Calculate variance
+    const mean = this.headingHistory.reduce((a, b) => a + b, 0) / this.headingHistory.length;
+    const variance = this.headingHistory.reduce((sum, h) => {
+      const diff = h - mean;
+      return sum + (diff * diff);
+    }, 0) / this.headingHistory.length;
+    
+    const stdDev = Math.sqrt(variance);
+    
+    // Update calibration state
+    const oldState = this.calibrationState;
+    
+    if (stdDev > CONFIG.CALIBRATION_VARIANCE_THRESHOLD) {
+      this.calibrationState = 'poor';
+    } else {
+      this.calibrationState = 'good';
+    }
+    
+    // Callback if changed
+    if (oldState !== this.calibrationState && this.onCalibrationChange) {
+      this.onCalibrationChange(this.calibrationState);
+    }
+  },
+  
+  // Get current heading
   getHeading() {
-    return this.heading;
+    return this.smoothedHeading;
   },
   
-  isReady() {
-    return this.enabled && this.source !== 'none';
+  // Set manual heading (demo mode)
+  setManualHeading(heading) {
+    this.currentHeading = heading;
+    this.smoothedHeading = heading;
+    this.headingSource = 'manual';
   },
   
+  // Get heading source
   getSource() {
-    return this.source;
+    return this.headingSource;
   }
 };
 
 // ============================================================================
-// DEMO CONTROLLER - Mux Live GPS vs Simulated Position
+// DEMO CONTROLLER - Mux Live vs Simulated
 // ============================================================================
 
 const DemoController = {
-  mode: 'live', // 'live' or 'demo'
+  mode: 'live',
   simLat: null,
   simLng: null,
   simHeading: 0,
   livePosition: null,
   
   init() {
-    // Check URL params
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'demo') {
       this.mode = 'demo';
       this.simLat = parseFloat(params.get('lat')) || 22.3045;
       this.simLng = parseFloat(params.get('lng')) || 114.1595;
-      this.simHeading = parseFloat(params.get('hdg')) || 120;
-      console.log(`🎭 Demo mode: ${this.simLat}, ${this.simLng}, hdg: ${this.simHeading}°`);
+      this.simHeading = parseFloat(params.get('hdg')) || 105;
     }
   },
   
   setMode(mode) {
     this.mode = mode;
-    console.log(`📍 Mode: ${mode}`);
   },
   
   setDemo(lat, lng, heading) {
     this.simLat = lat;
     this.simLng = lng;
     this.simHeading = heading;
-    console.log(`🎯 Demo position: ${lat.toFixed(4)}, ${lng.toFixed(4)}, hdg: ${heading}°`);
+    OrientationManager.setManualHeading(heading);
   },
   
   loadPreset(presetKey) {
@@ -380,8 +456,7 @@ const DemoController = {
     if (this.mode === 'demo') {
       return this.simHeading;
     }
-    // Use OrientationManager in live mode
-    return OrientationManager.isReady() ? OrientationManager.getHeading() : 0;
+    return OrientationManager.getHeading();
   },
   
   updateLivePosition(position, accuracy) {
@@ -397,7 +472,7 @@ let userPosition = null;
 let arReady = false;
 let nearbyPOICount = 0;
 let visiblePOIs = new Set();
-let onboardingStep = 0;
+let poiEntities = new Map(); // Track created entities
 
 // ============================================================================
 // DOM ELEMENTS
@@ -408,24 +483,17 @@ const loadingStatus = document.getElementById('loading-status');
 const skipLoadingBtn = document.getElementById('skip-loading');
 const gpsAccuracy = document.getElementById('gps-accuracy');
 const gpsCoords = document.getElementById('gps-coords');
+const headingInfo = document.getElementById('heading-info');
 const instructions = document.getElementById('instructions');
 const closeInstructionsBtn = document.getElementById('close-instructions');
 const poiCounter = document.getElementById('poi-counter');
 const poiCountElement = document.getElementById('poi-count');
-
-// New controls
 const modeToggle = document.getElementById('mode-toggle');
 const presetPicker = document.getElementById('preset-picker');
 const manualLat = document.getElementById('manual-lat');
 const manualLng = document.getElementById('manual-lng');
 const manualHeading = document.getElementById('manual-heading');
 const applyManualBtn = document.getElementById('apply-manual');
-const onboardingCoach = document.getElementById('onboarding-coach');
-const coachMessage = document.getElementById('coach-message');
-const coachNext = document.getElementById('coach-next');
-const emptyState = document.getElementById('empty-state');
-const ghostHints = document.getElementById('ghost-hints');
-const headingDebug = document.getElementById('heading-debug');
 
 // ============================================================================
 // INITIALIZE
@@ -433,21 +501,22 @@ const headingDebug = document.getElementById('heading-debug');
 
 window.addEventListener('DOMContentLoaded', init);
 
-function init() {
-  console.log('🚀 Sightline WebAR IMU Edition - Initializing...');
-  
-  // Initialize orientation manager first
-  OrientationManager.init();
+async function init() {
+  console.log('🚀 Sightline WebAR IMU Enhanced - Initializing...');
   
   DemoController.init();
-  
-  // Set up UI controls
   setupControls();
   
-  // Check if demo mode from URL
+  // Initialize Orientation Manager
+  await OrientationManager.init(
+    onHeadingUpdate,
+    onCalibrationUpdate
+  );
+  
+  // Check if demo mode
   if (DemoController.mode === 'demo') {
-    console.log('🎭 Demo mode activated from URL');
-    updateLoadingStatus('Demo mode - no GPS needed!');
+    console.log('🎭 Demo mode activated');
+    updateLoadingStatus('Demo mode - GPS-free!');
     setTimeout(() => {
       loadingOverlay.classList.add('hidden');
       initDemoMode();
@@ -455,10 +524,9 @@ function init() {
     return;
   }
   
-  // Normal live GPS flow
+  // Live GPS flow
   updateLoadingStatus('Requesting camera & GPS...');
   
-  // A-Frame scene loaded
   const scene = document.querySelector('a-scene');
   if (scene) {
     scene.addEventListener('loaded', () => {
@@ -472,36 +540,11 @@ function init() {
     });
   }
   
-  // GPS camera ready event
-  window.addEventListener('gps-camera-ready', () => {
-    console.log('📡 GPS Camera Component Ready');
-    onARReady();
-  });
-  
-  // GPS update event
+  window.addEventListener('gps-camera-ready', onARReady);
   window.addEventListener('gps-camera-update-position', onGPSUpdate);
-  
-  // GPS error event
   window.addEventListener('gps-camera-error', onGPSError);
   
-  // Close instructions
-  if (closeInstructionsBtn) {
-    closeInstructionsBtn.addEventListener('click', () => {
-      instructions.classList.add('hidden');
-    });
-  }
-  
-  // Help button - show instructions
-  const helpButton = document.getElementById('help-button');
-  if (helpButton) {
-    helpButton.addEventListener('click', () => {
-      if (instructions) {
-        instructions.classList.remove('hidden');
-      }
-    });
-  }
-  
-  // Skip loading button (show after 5 seconds)
+  // Skip button
   setTimeout(() => {
     if (!arReady && skipLoadingBtn) {
       skipLoadingBtn.style.display = 'block';
@@ -510,20 +553,49 @@ function init() {
   
   if (skipLoadingBtn) {
     skipLoadingBtn.addEventListener('click', () => {
-      console.log('User clicked skip - offering demo mode');
       loadingOverlay.classList.add('hidden');
       offerDemoMode();
     });
   }
   
-  // Start update intervals
+  // Start update loops
   setInterval(updateDistances, CONFIG.UPDATE_INTERVAL);
-  setInterval(updateVisibilityAndHints, CONFIG.HEADING_UPDATE_INTERVAL);
-  setInterval(updateHeadingDebug, CONFIG.HEADING_UPDATE_INTERVAL);
+  setInterval(updateVisibilityAndHints, 500); // Faster for IMU responsiveness
   
-  // Show onboarding on first run
-  if (!localStorage.getItem('sightline-onboarded')) {
-    setTimeout(() => showOnboarding(), 2000);
+  console.log('✅ Initialization complete');
+}
+
+// ============================================================================
+// HEADING UPDATE CALLBACK
+// ============================================================================
+
+function onHeadingUpdate(heading, source) {
+  // Update heading display
+  if (headingInfo) {
+    headingInfo.textContent = `Heading: ${Math.round(heading)}° (${source})`;
+  }
+  
+  // Update POI positions in demo mode
+  if (DemoController.mode === 'demo') {
+    updateAllPOIPositions();
+  }
+  
+  // Update visibility (for FOV filtering)
+  updateVisibilityAndHints();
+}
+
+// ============================================================================
+// CALIBRATION UPDATE CALLBACK
+// ============================================================================
+
+function onCalibrationUpdate(state) {
+  const calibrationToast = document.getElementById('calibration-toast');
+  
+  if (state === 'poor' && calibrationToast) {
+    calibrationToast.classList.remove('hidden');
+    calibrationToast.textContent = '🧭 Compass low confidence—move phone in a figure-8 to calibrate';
+  } else if (calibrationToast) {
+    calibrationToast.classList.add('hidden');
   }
 }
 
@@ -532,17 +604,14 @@ function init() {
 // ============================================================================
 
 function setupControls() {
-  // Mode toggle
   if (modeToggle) {
     modeToggle.addEventListener('change', (e) => {
       const newMode = e.target.checked ? 'demo' : 'live';
       switchMode(newMode);
     });
-    
     modeToggle.checked = (DemoController.mode === 'demo');
   }
   
-  // Preset picker
   if (presetPicker) {
     presetPicker.addEventListener('change', (e) => {
       const presetKey = e.target.value;
@@ -557,14 +626,23 @@ function setupControls() {
     });
   }
   
-  // Apply manual position
   if (applyManualBtn) {
     applyManualBtn.addEventListener('click', applyDemo);
   }
   
-  // Onboarding coach
-  if (coachNext) {
-    coachNext.addEventListener('click', nextOnboardingStep);
+  if (closeInstructionsBtn) {
+    closeInstructionsBtn.addEventListener('click', () => {
+      instructions.classList.add('hidden');
+    });
+  }
+  
+  const helpButton = document.getElementById('help-button');
+  if (helpButton) {
+    helpButton.addEventListener('click', () => {
+      if (instructions) {
+        instructions.classList.remove('hidden');
+      }
+    });
   }
 }
 
@@ -573,9 +651,9 @@ function switchMode(newMode) {
   
   if (newMode === 'demo') {
     initDemoMode();
-    showSuccess('🎭 Demo mode active - position simulated');
+    showSuccess('🎭 Demo mode active');
   } else {
-    showSuccess('📡 Live GPS mode - using your location');
+    showSuccess('📡 Live GPS mode');
     setTimeout(() => location.reload(), 1000);
   }
 }
@@ -583,25 +661,20 @@ function switchMode(newMode) {
 function initDemoMode() {
   arReady = true;
   
-  // Set default preset if none loaded
   if (!DemoController.simLat || !DemoController.simLng) {
-    DemoController.loadPreset('freespace');
+    DemoController.loadPreset('wkcd-freespace');
   }
   
-  // Update UI
   if (manualLat) manualLat.value = DemoController.simLat;
   if (manualLng) manualLng.value = DemoController.simLng;
   if (manualHeading) manualHeading.value = DemoController.simHeading;
   
-  // Create demo scene
   createDemoScene();
   
-  // Simulate position update
   const pos = DemoController.getCurrentPosition();
   userPosition = pos;
   updateGPSDisplay(pos.lat, pos.lng, pos.accuracy);
   
-  // Initial POI update
   updateDistances();
   updateVisibilityAndHints();
 }
@@ -619,13 +692,14 @@ function applyDemo() {
   DemoController.setDemo(lat, lng, hdg);
   userPosition = DemoController.getCurrentPosition();
   updateGPSDisplay(lat, lng, 10);
+  updateAllPOIPositions();
   updateDistances();
   updateVisibilityAndHints();
   showSuccess('✅ Position updated');
 }
 
 function offerDemoMode() {
-  if (confirm('GPS not available. Switch to Demo Mode?\n\nDemo mode simulates your position so you can preview the AR experience.')) {
+  if (confirm('GPS not available. Switch to Demo Mode?')) {
     DemoController.setMode('demo');
     if (modeToggle) modeToggle.checked = true;
     initDemoMode();
@@ -633,41 +707,42 @@ function offerDemoMode() {
 }
 
 // ============================================================================
-// DEMO SCENE CREATION WITH PROPER POI CARDS
+// DEMO SCENE CREATION
 // ============================================================================
 
 function createDemoScene() {
   const scene = document.querySelector('a-scene');
   if (!scene) return;
   
-  // Remove GPS camera if exists
   const existingCamera = scene.querySelector('[gps-camera]');
   if (existingCamera) {
     existingCamera.parentNode.removeChild(existingCamera);
   }
   
-  // Add simple camera for demo
   let camera = scene.querySelector('a-camera');
   if (!camera) {
     camera = document.createElement('a-camera');
     camera.setAttribute('position', '0 1.6 0');
+    camera.setAttribute('look-controls', 'enabled: false'); // Disable manual look
     scene.appendChild(camera);
   }
   
-  // Create POI entities with PROPER LABELS (fix white sticker issue)
   POIS.forEach(poi => {
     createPOIEntity(poi);
   });
   
-  console.log('🎬 Demo scene created with proper POI cards');
+  console.log('🎬 Demo scene created with', POIS.length, 'POIs');
 }
+
+// ============================================================================
+// POI ENTITY CREATION - Fixed Card Rendering
+// ============================================================================
 
 function createPOIEntity(poi) {
   const scene = document.querySelector('a-scene');
   if (!scene) return;
   
-  // Check if already exists
-  if (document.getElementById(`poi-${poi.id}`)) {
+  if (poiEntities.has(poi.id)) {
     updatePOIPosition(poi);
     return;
   }
@@ -677,103 +752,93 @@ function createPOIEntity(poi) {
   entity.classList.add('poi-card');
   entity.setAttribute('data-poi-id', poi.id);
   
-  // Position will be updated based on bearing/distance
-  updatePOIPosition(poi);
-  
-  // Create card visual - FIX WHITE STICKER BUG
   const cardColor = getCategoryColor(poi.category);
   const isFar = poi.range === 'far';
-  
-  // Card dimensions
   const cardWidth = isFar ? 20 : 10;
   const cardHeight = isFar ? 10 : 5;
   
-  // Background plane - white with high opacity
+  // Background plane - white, semi-transparent
   const bg = document.createElement('a-plane');
-  bg.setAttribute('width', cardWidth);
-  bg.setAttribute('height', cardHeight);
+  bg.setAttribute('width', cardWidth.toString());
+  bg.setAttribute('height', cardHeight.toString());
   bg.setAttribute('color', '#ffffff');
-  bg.setAttribute('opacity', '0.98');
-  bg.setAttribute('shader', 'flat'); // Ensure consistent rendering
+  bg.setAttribute('opacity', '0.95');
+  bg.setAttribute('shader', 'flat');
   entity.appendChild(bg);
   
-  // Header bar with color
-  const header = document.createElement('a-plane');
-  header.setAttribute('width', cardWidth);
-  header.setAttribute('height', isFar ? '2' : '1');
-  header.setAttribute('color', cardColor);
-  header.setAttribute('opacity', '1');
-  header.setAttribute('position', `0 ${isFar ? '4' : '2'} 0.01`);
-  header.setAttribute('shader', 'flat');
-  entity.appendChild(header);
-  
-  // Title (MUST be visible - this fixes the NaN/blank issue)
+  // Title - BLACK text on white background
   const title = document.createElement('a-text');
   title.setAttribute('value', poi.name);
   title.setAttribute('color', '#000000');
   title.setAttribute('align', 'center');
-  title.setAttribute('width', cardWidth * 0.9);
-  title.setAttribute('position', `0 ${isFar ? '1' : '0.5'} 0.02`);
-  title.setAttribute('font', 'roboto');
-  title.setAttribute('shader', 'msdf'); // Better text rendering
-  title.setAttribute('baseline', 'center');
+  title.setAttribute('anchor', 'center');
+  title.setAttribute('width', (cardWidth * 0.9).toString());
+  title.setAttribute('position', `0 ${isFar ? '3' : '1.5'} 0.01`);
+  title.setAttribute('shader', 'msdf');
+  title.setAttribute('font', 'https://cdn.aframe.io/fonts/Roboto-msdf.json');
   entity.appendChild(title);
   
-  // Description
+  // Description - DARK GRAY text
   const desc = document.createElement('a-text');
   desc.setAttribute('value', poi.description);
-  desc.setAttribute('color', '#666666');
+  desc.setAttribute('color', '#333333');
   desc.setAttribute('align', 'center');
-  desc.setAttribute('width', cardWidth * 0.85);
-  desc.setAttribute('position', `0 ${isFar ? '-1' : '-0.8'} 0.02`);
+  desc.setAttribute('anchor', 'center');
+  desc.setAttribute('width', (cardWidth * 0.8).toString());
+  desc.setAttribute('position', `0 ${isFar ? '0.5' : '0'} 0.01`);
   desc.setAttribute('shader', 'msdf');
-  desc.setAttribute('baseline', 'center');
+  desc.setAttribute('font', 'https://cdn.aframe.io/fonts/Roboto-msdf.json');
   entity.appendChild(desc);
   
-  // Distance label (will be updated dynamically)
+  // Distance label - COLORED text
   const distLabel = document.createElement('a-text');
-  distLabel.setAttribute('value', 'Calculating...');
+  distLabel.setAttribute('value', '---');
   distLabel.setAttribute('color', cardColor);
   distLabel.setAttribute('align', 'center');
-  distLabel.setAttribute('width', cardWidth * 0.7);
-  distLabel.setAttribute('position', `0 ${isFar ? '-3' : '-1.8'} 0.02`);
-  distLabel.setAttribute('class', 'distance-text'); // Critical for updateDistances()
+  distLabel.setAttribute('anchor', 'center');
+  distLabel.setAttribute('width', (cardWidth * 0.7).toString());
+  distLabel.setAttribute('position', `0 ${isFar ? '-2.5' : '-1.5'} 0.01`);
+  distLabel.setAttribute('class', 'distance-text');
   distLabel.setAttribute('shader', 'msdf');
-  distLabel.setAttribute('baseline', 'center');
+  distLabel.setAttribute('font', 'https://cdn.aframe.io/fonts/Roboto-msdf.json');
   distLabel.id = `distance-${poi.id}`;
   entity.appendChild(distLabel);
   
   // Year badge
   if (poi.year) {
     const yearBadge = document.createElement('a-circle');
-    yearBadge.setAttribute('radius', isFar ? '1.2' : '0.9');
+    yearBadge.setAttribute('radius', isFar ? '1.2' : '0.8');
     yearBadge.setAttribute('color', cardColor);
-    yearBadge.setAttribute('position', `${cardWidth * 0.4} ${isFar ? '4' : '2'} 0.02`);
-    yearBadge.setAttribute('shader', 'flat');
+    yearBadge.setAttribute('position', `${isFar ? (cardWidth/2 - 1.5) : (cardWidth/2 - 1)} ${isFar ? '3.5' : '2'} 0.01`);
     entity.appendChild(yearBadge);
     
     const yearText = document.createElement('a-text');
     yearText.setAttribute('value', poi.year.toString());
     yearText.setAttribute('color', '#ffffff');
     yearText.setAttribute('align', 'center');
-    yearText.setAttribute('width', isFar ? '5' : '3');
-    yearText.setAttribute('position', `${cardWidth * 0.4} ${isFar ? '4' : '2'} 0.03`);
+    yearText.setAttribute('anchor', 'center');
+    yearText.setAttribute('width', isFar ? '4' : '3');
+    yearText.setAttribute('position', `${isFar ? (cardWidth/2 - 1.5) : (cardWidth/2 - 1)} ${isFar ? '3.5' : '2'} 0.02`);
     yearText.setAttribute('shader', 'msdf');
-    yearText.setAttribute('baseline', 'center');
+    yearText.setAttribute('font', 'https://cdn.aframe.io/fonts/Roboto-msdf.json');
     entity.appendChild(yearText);
   }
   
-  // Billboard behavior (always face camera) - critical for readability
+  // Billboard (always face camera)
   entity.setAttribute('look-at', '[camera]');
-  entity.setAttribute('scale', '1 1 1'); // Ensure proper scale
   
   scene.appendChild(entity);
+  poiEntities.set(poi.id, entity);
   
-  console.log(`✅ Created POI card: ${poi.name}`);
+  updatePOIPosition(poi);
 }
 
+// ============================================================================
+// UPDATE POI POSITION
+// ============================================================================
+
 function updatePOIPosition(poi) {
-  const entity = document.getElementById(`poi-${poi.id}`);
+  const entity = poiEntities.get(poi.id);
   if (!entity) return;
   
   const pos = DemoController.getCurrentPosition();
@@ -783,29 +848,23 @@ function updatePOIPosition(poi) {
   const bearing = calculateBearing(pos.lat, pos.lng, poi.lat, poi.lng);
   const heading = DemoController.getHeading();
   
-  // Convert bearing/distance to x,z coordinates
   const relativeBearing = (bearing - heading + 360) % 360;
   const angleRad = (relativeBearing * Math.PI) / 180;
   
-  // Scale distance for AR world
-  const scaledDist = Math.min(distance, 500); // Clamp for visibility
+  const scaledDist = Math.min(distance, 500);
   const x = Math.sin(angleRad) * scaledDist;
   const z = -Math.cos(angleRad) * scaledDist;
   
-  // Height based on distance (skyline effect)
-  let y = 1.6; // Eye level default
+  let y = 10;
   if (poi.range === 'far' && distance > CONFIG.FAR_RANGE) {
-    y = 30 + (poi.elevation || 200) / 15; // Elevated for skyline
+    y = 50 + (poi.elevation || 200) / 10;
   } else if (distance > CONFIG.MID_RANGE) {
-    y = 15;
-  } else {
-    y = 8;
+    y = 20;
   }
   
   entity.setAttribute('position', `${x} ${y} ${z}`);
   entity.setAttribute('visible', distance <= CONFIG.MAX_DISTANCE);
   
-  // Update distance label
   const distLabel = document.getElementById(`distance-${poi.id}`);
   if (distLabel) {
     let distText;
@@ -818,25 +877,28 @@ function updatePOIPosition(poi) {
   }
 }
 
+function updateAllPOIPositions() {
+  POIS.forEach(poi => updatePOIPosition(poi));
+}
+
 // ============================================================================
 // AR READY
 // ============================================================================
 
 function onARReady() {
-  console.log('✅ AR Camera Ready');
+  console.log('✅ AR Ready');
   arReady = true;
   updateLoadingStatus('AR initialized!');
   
   setTimeout(() => {
     loadingOverlay.classList.add('hidden');
-    showSuccess('AR Ready! Turn your phone to discover landmarks.');
+    showSuccess('AR Ready! Turn to discover landmarks.');
   }, 500);
 }
 
-// Timeout fallback
 setTimeout(() => {
   if (!arReady) {
-    console.warn('⚠️ AR initialization timeout');
+    console.warn('⚠️ AR timeout');
     loadingOverlay.classList.add('hidden');
     offerDemoMode();
   }
@@ -848,19 +910,15 @@ setTimeout(() => {
 
 function onGPSUpdate(event) {
   const { position, accuracy } = event.detail;
-  
   DemoController.updateLivePosition(position, accuracy);
   userPosition = position;
-  
   updateGPSDisplay(position.latitude, position.longitude, accuracy);
   updateDistances();
-  
-  console.log(`📍 GPS: ${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)} ±${accuracy.toFixed(1)}m`);
 }
 
 function onGPSError(event) {
   console.error('❌ GPS Error:', event.detail);
-  showError('GPS signal lost. Try moving to an open area or switch to Demo Mode.');
+  showError('GPS signal lost. Try demo mode.');
 }
 
 // ============================================================================
@@ -868,7 +926,7 @@ function onGPSError(event) {
 // ============================================================================
 
 function calculateDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000;
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -904,20 +962,8 @@ function updateDistances() {
   POIS.forEach(poi => {
     const distance = calculateDistance(pos.lat, pos.lng, poi.lat, poi.lng);
     
-    // Update distance in AR card
     if (DemoController.mode === 'demo') {
       updatePOIPosition(poi);
-    } else {
-      const distLabel = document.querySelector(`[data-poi-id="${poi.id}"] .distance-text`);
-      if (distLabel) {
-        let distText;
-        if (distance >= 1000) {
-          distText = `${(distance / 1000).toFixed(1)} km`;
-        } else {
-          distText = `${Math.round(distance)}m`;
-        }
-        distLabel.setAttribute('value', distText);
-      }
     }
     
     if (distance <= CONFIG.MAX_DISTANCE) {
@@ -925,14 +971,13 @@ function updateDistances() {
     }
   });
   
-  // Update counter
   if (poiCountElement) {
     poiCountElement.textContent = nearbyPOICount;
   }
 }
 
 // ============================================================================
-// VISIBILITY & GHOST HINTS (IMU-driven)
+// VISIBILITY & GHOST HINTS
 // ============================================================================
 
 function updateVisibilityAndHints() {
@@ -950,24 +995,13 @@ function updateVisibilityAndHints() {
     const bearing = calculateBearing(pos.lat, pos.lng, poi.lat, poi.lng);
     const relativeBearing = (bearing - heading + 360) % 360;
     
-    // Check if in FOV
     const inFOV = relativeBearing < CONFIG.FOV/2 || relativeBearing > (360 - CONFIG.FOV/2);
     
     if (inFOV) {
       visiblePOIs.add(poi.id);
     } else {
-      // Calculate direction hint
-      let direction = 'right';
-      if (relativeBearing > 180) {
-        direction = 'left';
-      }
-      
-      let distText;
-      if (distance >= 1000) {
-        distText = `${(distance / 1000).toFixed(1)} km`;
-      } else {
-        distText = `${Math.round(distance)}m`;
-      }
+      let direction = relativeBearing > 180 ? 'left' : 'right';
+      let distText = distance >= 1000 ? `${(distance/1000).toFixed(1)} km` : `${Math.round(distance)}m`;
       
       offScreenPOIs.push({
         name: poi.name,
@@ -978,10 +1012,9 @@ function updateVisibilityAndHints() {
     }
   });
   
-  // Update ghost hints
   updateGhostHints(offScreenPOIs);
   
-  // Show/hide empty state
+  const emptyState = document.getElementById('empty-state');
   if (emptyState) {
     if (visiblePOIs.size === 0 && nearbyPOICount > 0) {
       emptyState.classList.remove('hidden');
@@ -992,9 +1025,9 @@ function updateVisibilityAndHints() {
 }
 
 function updateGhostHints(offScreenPOIs) {
+  const ghostHints = document.getElementById('ghost-hints');
   if (!ghostHints) return;
   
-  // Clear existing
   ghostHints.innerHTML = '';
   
   if (offScreenPOIs.length === 0) {
@@ -1004,97 +1037,16 @@ function updateGhostHints(offScreenPOIs) {
   
   ghostHints.classList.remove('hidden');
   
-  // Show top 3 closest off-screen POIs
   offScreenPOIs.slice(0, 3).forEach((poi, idx) => {
     const hint = document.createElement('div');
     hint.className = `ghost-hint ghost-${poi.direction}`;
-    hint.style.top = `${30 + idx * 60}px`;
+    hint.style.top = `${130 + idx * 60}px`;
     
     const arrow = poi.direction === 'left' ? '←' : '→';
     hint.innerHTML = `${arrow} ${poi.name} • ${poi.distance}`;
     
     ghostHints.appendChild(hint);
   });
-}
-
-// ============================================================================
-// HEADING DEBUG DISPLAY
-// ============================================================================
-
-function updateHeadingDebug() {
-  if (!headingDebug) return;
-  
-  const heading = DemoController.getHeading();
-  const source = OrientationManager.getSource();
-  const isReady = OrientationManager.isReady();
-  
-  headingDebug.textContent = `🧭 ${Math.round(heading)}° (${source}) ${isReady ? '✓' : '✗'}`;
-  headingDebug.style.color = isReady ? '#4ADE80' : '#ef4444';
-}
-
-// ============================================================================
-// CALIBRATION TOAST
-// ============================================================================
-
-function showCalibrationToast() {
-  const toast = document.createElement('div');
-  toast.className = 'calibration-toast';
-  toast.innerHTML = `
-    <div class="calibration-content">
-      <span class="calibration-icon">🧭</span>
-      <span>Compass low confidence</span>
-      <button class="calibration-dismiss">✕</button>
-    </div>
-    <div class="calibration-hint">Move phone in a figure-8 to calibrate</div>
-  `;
-  
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.classList.add('show');
-  }, 10);
-  
-  const dismissBtn = toast.querySelector('.calibration-dismiss');
-  dismissBtn.addEventListener('click', () => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  });
-  
-  // Auto-dismiss after 10 seconds
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 10000);
-}
-
-// ============================================================================
-// ONBOARDING COACH
-// ============================================================================
-
-const ONBOARDING_STEPS = [
-  "This is Sightline. Turn your phone to see landmarks appear as you face them.",
-  "No touching needed—just look around! Cards show name, year, and distance.",
-  "Ghost hints (← →) guide you to landmarks outside your view."
-];
-
-function showOnboarding() {
-  if (!onboardingCoach || !coachMessage) return;
-  
-  onboardingStep = 0;
-  coachMessage.textContent = ONBOARDING_STEPS[0];
-  onboardingCoach.classList.remove('hidden');
-}
-
-function nextOnboardingStep() {
-  onboardingStep++;
-  
-  if (onboardingStep >= ONBOARDING_STEPS.length) {
-    onboardingCoach.classList.add('hidden');
-    localStorage.setItem('sightline-onboarded', 'true');
-    return;
-  }
-  
-  coachMessage.textContent = ONBOARDING_STEPS[onboardingStep];
 }
 
 // ============================================================================
@@ -1113,15 +1065,15 @@ function updateGPSDisplay(lat, lng, accuracy) {
   }
   
   if (gpsAccuracy) {
-    let color = '#22c55e'; // green
+    let color = '#22c55e';
     let status = 'Excellent';
     
     if (accuracy > 30) {
-      color = '#eab308'; // yellow
+      color = '#eab308';
       status = 'Good';
     }
     if (accuracy > 100) {
-      color = '#ef4444'; // red
+      color = '#ef4444';
       status = 'Poor';
     }
     
@@ -1139,7 +1091,6 @@ function showError(message) {
 }
 
 function showToast(message, type = 'info') {
-  // Remove existing toasts
   const existing = document.querySelectorAll('.toast');
   existing.forEach(t => t.remove());
   
@@ -1148,10 +1099,7 @@ function showToast(message, type = 'info') {
   toast.textContent = message;
   document.body.appendChild(toast);
   
-  setTimeout(() => {
-    toast.classList.add('show');
-  }, 10);
-  
+  setTimeout(() => toast.classList.add('show'), 10);
   setTimeout(() => {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
@@ -1179,6 +1127,7 @@ function getCategoryColor(category) {
 window.SightlineAR = {
   getUserPosition: () => DemoController.getCurrentPosition(),
   getHeading: () => DemoController.getHeading(),
+  getHeadingSource: () => OrientationManager.getSource(),
   getMode: () => DemoController.mode,
   isARReady: () => arReady,
   getNearbyPOICount: () => nearbyPOICount,
@@ -1198,17 +1147,10 @@ window.SightlineAR = {
     applyDemo();
     return preset;
   },
-  // Orientation debug
-  getOrientationStatus: () => ({
-    enabled: OrientationManager.enabled,
-    heading: OrientationManager.heading,
-    smoothedHeading: OrientationManager.smoothedHeading,
-    source: OrientationManager.source,
-    isReady: OrientationManager.isReady(),
-    calibrationNeeded: OrientationManager.calibrationNeeded
-  })
+  getCalibrationState: () => OrientationManager.calibrationState
 };
 
-console.log('✅ Sightline WebAR IMU Edition - Ready');
+console.log('✅ Sightline WebAR IMU Enhanced - Ready');
 console.log('💡 Debug API: window.SightlineAR');
 console.log('🧭 OrientationManager active');
+
