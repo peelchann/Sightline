@@ -763,8 +763,9 @@ function createPOIEntity(poi) {
     entity.appendChild(yearText);
   }
   
-  // Billboard behavior (always face camera)
+  // Billboard behavior (always face camera) - critical for readability
   entity.setAttribute('look-at', '[camera]');
+  entity.setAttribute('scale', '1 1 1'); // Ensure proper scale
   
   scene.appendChild(entity);
   
