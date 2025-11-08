@@ -1,0 +1,23 @@
+Category,Item,Cost_HKD,Justification
+Unity XR Development,Unity contractor - Month 2 (80 hours @ HK$146/hr),11667,ARCore Geospatial integration and AR card UI implementation
+Unity XR Development,Unity contractor - Month 3 (80 hours @ HK$146/hr),11667,Quest 3 Passthrough Camera API integration and leader line rendering
+Unity XR Development,Unity contractor - Month 4 (40 hours @ HK$146/hr),5833,Beta launch support and bug fixes
+Unity XR Development,Unity contractor - Month 5-6 (40 hours @ HK$146/hr),5833,Venue demo preparation and final optimization
+Backend/API Development,Backend development - Month 1 (120 hours @ HK$100/hr),12000,Fastify server POI database Gemini Vision API integration telemetry
+Backend/API Development,Backend development - Month 2-4 (30 hours @ HK$100/hr),3000,API refinement Vision AI fallback confidence gating logic
+Cloud & AI APIs,Vuforia Engine license (6 months @ USD$99/mo),4600,Area Target capability for high-precision indoor anchoring
+Cloud & AI APIs,Gemini Vision API calls (est. 5000 images @ USD$1/1000),300,POI identification from camera frames (indoor fallback path)
+Cloud & AI APIs,Gemini Vision API calls - buffer for overages,2100,Contingency for higher-than-expected usage during beta (50 users)
+Cloud & AI APIs,Firebase/Google Cloud hosting (6 months),2000,Backend server hosting database storage monitoring dashboards
+Cloud & AI APIs,Cloudflare CDN (6 months @ HK$200/mo),1000,Asset delivery (POI images AR card textures) with global caching
+Devices & Field Testing,Quest 3 accessories (Elite Strap battery pack case),3000,Improve comfort for extended indoor testing sessions
+Devices & Field Testing,Android test device (if needed ARCore-compatible mid-range),5000,Backup device for testing compatibility (Xiaomi/Samsung)
+Devices & Field Testing,Field testing - Month 1-2 (Clock Tower Star Ferry IFC),3000,Transport meals on-site testing time (10 visits × HK$300)
+Devices & Field Testing,Field testing - Month 3 (Teacher trial logistics),4000,Transport student materials backup devices coordinator stipend
+Devices & Field Testing,Field testing - Month 4-6 (Beta support venue visits),5000,On-site demos with venues travel to museum locations beta user meetups
+Design/Video Production,UX/UI design (AR card layout leader line style),4000,Figma mockups design system color palette typography (Month 1)
+Design/Video Production,Demo video production (videographer editing),6000,90-second field demo (Month 5): 1 day shoot 2 days editing
+Contingency,Technical contingency (API overages hardware failure),5000,Buffer for unexpected costs: extra Vision API calls server scaling device repair
+Contingency,Operational contingency (legal LOI review extra testing),5000,Pilot LOI legal review (HK$2000) + extra field testing days or second teacher trial if needed
+TOTAL,,100000,
+
