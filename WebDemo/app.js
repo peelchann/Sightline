@@ -308,6 +308,16 @@ function init() {
     });
   }
   
+  // Help button - show instructions
+  const helpButton = document.getElementById('help-button');
+  if (helpButton) {
+    helpButton.addEventListener('click', () => {
+      if (instructions) {
+        instructions.classList.remove('hidden');
+      }
+    });
+  }
+  
   // Skip loading button (show after 5 seconds)
   setTimeout(() => {
     if (!arReady && skipLoadingBtn) {
