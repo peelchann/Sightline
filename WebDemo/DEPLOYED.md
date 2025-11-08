@@ -1,7 +1,7 @@
 # 🚀 Sightline WebAR - Live Deployment
 
-**Status:** ✅ LIVE  
-**Deployed:** November 7, 2024  
+**Status:** ✅ LIVE (IMU Heading v3.0)  
+**Deployed:** November 8, 2024  
 **Platform:** Vercel (HTTPS enabled)
 
 ---
@@ -10,12 +10,22 @@
 
 ### **Production URL:**
 ```
-https://sightline-webar-lnb0r2yhx-peelchans-projects.vercel.app
+https://sightline-webar-b41hzttzw-peelchans-projects.vercel.app
 ```
 
 ### **Test Page URL:**
 ```
-https://sightline-webar-lnb0r2yhx-peelchans-projects.vercel.app/test.html
+https://sightline-webar-b41hzttzw-peelchans-projects.vercel.app/test.html
+```
+
+### **Debug Page URL:**
+```
+https://sightline-webar-b41hzttzw-peelchans-projects.vercel.app/debug.html
+```
+
+### **West Kowloon Freespace Demo:**
+```
+https://sightline-webar-b41hzttzw-peelchans-projects.vercel.app/?mode=demo&lat=22.3045&lng=114.1595&hdg=120
 ```
 
 ---
