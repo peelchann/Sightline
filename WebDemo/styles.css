@@ -208,6 +208,58 @@ body {
   transform: scale(0.95);
 }
 
+/* Motion Permission Button (iOS) */
+.motion-permission-btn {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.motion-permission-btn:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.7);
+}
+
+.motion-permission-btn:active {
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+/* Calibration Toast */
+.calibration-toast {
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(251, 146, 60, 0.95);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 9998;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.5);
+  transition: top 0.3s ease;
+  max-width: 90%;
+  text-align: center;
+}
+
+.calibration-toast.show {
+  top: 80px;
+}
+
 /* iOS Permission Button */
 .ios-permission-btn {
   position: fixed;
