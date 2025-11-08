@@ -536,6 +536,7 @@ function createPOIEntity(poi) {
   distLabel.setAttribute('align', 'center');
   distLabel.setAttribute('width', '6');
   distLabel.setAttribute('position', `0 ${isFar ? '-2' : '-1.5'} 0.01`);
+  distLabel.setAttribute('class', 'distance-text');  // Add class for updateDistances()
   distLabel.id = `distance-${poi.id}`;
   entity.appendChild(distLabel);
   
