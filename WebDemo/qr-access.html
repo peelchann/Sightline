@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sightline WebAR - Scan to Access</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 800px;
+      background: rgba(0,0,0,0.6);
+      padding: 40px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      text-align: center;
+    }
+    h1 { font-size: 48px; margin-bottom: 20px; }
+    .url-box {
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 30px 0;
+      word-break: break-all;
+    }
+    .url {
+      font-size: 18px;
+      color: #4ADE80;
+      font-family: monospace;
+    }
+    .qr-container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      display: inline-block;
+      margin: 30px 0;
+    }
+    .qr-placeholder {
+      width: 300px;
+      height: 300px;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #666;
+      text-align: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .btn {
+      display: inline-block;
+      background: #4ADE80;
+      color: #000;
+      padding: 15px 30px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 18px;
+      margin: 10px;
+      transition: transform 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    .instructions {
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 30px;
+      text-align: left;
+    }
+    .instructions h3 { margin-top: 0; }
+    .instructions ol { margin: 15px 0; padding-left: 25px; }
+    .instructions li { margin: 10px 0; line-height: 1.6; }
+    .step-number { 
+      background: #4ADE80;
+      color: #000;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-block;
+      text-align: center;
+      line-height: 24px;
+      font-weight: bold;
+      margin-right: 5px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 Sightline WebAR</h1>
+    <p style="font-size: 20px; margin-bottom: 10px;">GPS-Based AR for Hong Kong Landmarks</p>
+    
+    <div class="url-box">
+      <div style="font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 10px;">🌐 Production URL:</div>
+      <div class="url" id="app-url">https://sightline-webar-lnb0r2yhx-peelchans-projects.vercel.app</div>
+    </div>
+    
+    <div class="qr-container">
+      <div id="qrcode"></div>
+    </div>
+    <div style="margin-bottom: 20px; color: rgba(255,255,255,0.8);">
+      👆 Scan this QR code with your phone camera
+    </div>
+    
+    <div>
+      <a href="https://sightline-webar-lnb0r2yhx-peelchans-projects.vercel.app" class="btn" target="_blank">
+        🚀 Open WebAR
+      </a>
+      <a href="https://sightline-webar-lnb0r2yhx-peelchans-projects.vercel.app/test.html" class="btn btn-secondary" target="_blank">
+        🧪 Test Page
+      </a>
+    </div>
+    
+    <div class="instructions">
+      <h3>📋 How to Test on Your Phone</h3>
+      <ol>
+        <li>
+          <strong>At Home (First Test):</strong><br>
+          Open the test page → Grant camera + GPS permissions → Should see "✅ All checks passed"
+        </li>
+        <li>
+          <strong>At Clock Tower (Field Test):</strong><br>
+          Go to Tsim Sha Tsui waterfront → Open main URL → Wait for GPS lock → AR card appears!
+        </li>
+        <li>
+          <strong>Expected:</strong><br>
+          GPS accuracy ±5-50m · AR cards within 150m · Distance updates as you walk
+        </li>
+      </ol>
+      
+      <div style="margin-top: 20px; padding: 15px; background: rgba(74, 222, 128, 0.2); border-radius: 8px; border: 2px solid #4ADE80;">
+        <strong>📍 Best Location:</strong> Clock Tower, Tsim Sha Tsui Promenade (22.2946°N, 114.1699°E)<br>
+        <strong>🚇 MTR:</strong> Tsim Sha Tsui Station, Exit E → 5 min walk
+      </div>
+    </div>
+    
+    <div style="margin-top: 30px; font-size: 14px; color: rgba(255,255,255,0.6);">
+      <p>✅ HTTPS Enabled · ✅ iOS Safari Compatible · ✅ Android Chrome Compatible</p>
+      <p>GitHub: <a href="https://github.com/peelchann/Sightline" style="color: #4ADE80;">peelchann/Sightline</a></p>
+    </div>
+  </div>
+  
+  <script>
+    // Generate QR code
+    const url = "https://sightline-webar-lnb0r2yhx-peelchans-projects.vercel.app";
+    new QRCode(document.getElementById("qrcode"), {
+      text: url,
+      width: 300,
+      height: 300,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    
+    // Make URL clickable
+    document.getElementById('app-url').onclick = function() {
+      window.open(url, '_blank');
+    };
+    document.getElementById('app-url').style.cursor = 'pointer';
+  </script>
+</body>
+</html>
+
+
