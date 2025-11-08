@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Sightline WebAR - Hong Kong Landmarks</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sightline WebAR - Works Anywhere</title>
+  <meta name="description" content="Discover Hong Kong landmarks through augmented reality">
   
-  <!-- A-Frame library (VR/AR framework) -->
+  <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  
-  <!-- AR.js library (GPS-based AR) -->
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   
   <link rel="stylesheet" href="styles.css">
@@ -22,6 +20,49 @@
       <div class="spinner"></div>
       <h2>Initializing AR...</h2>
       <p id="loading-status">Requesting permissions...</p>
+      <button id="skip-loading" style="
+        margin-top: 20px;
+        padding: 10px 20px;
+        background: rgba(255,255,255,0.2);
+        color: #fff;
+        border: 2px solid rgba(255,255,255,0.5);
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        display: none;
+      ">Skip & Try Demo Mode</button>
+      <p style="font-size: 12px; margin-top: 10px; color: rgba(255,255,255,0.6);">
+        Stuck? Try <a href="debug.html" style="color: #4ADE80;">Debug Tool</a>
+      </p>
+    </div>
+  </div>
+  
+  <!-- Control Bar (Demo Mode) -->
+  <div id="control-bar">
+    <div class="control-row">
+      <div class="control-group">
+        <label class="switch">
+          <input type="checkbox" id="mode-toggle">
+          <span class="slider"></span>
+        </label>
+        <span class="control-label">Demo Mode</span>
+      </div>
+      
+      <div class="control-group">
+        <select id="preset-picker">
+          <option value="">Choose preset...</option>
+          <option value="freespace">🌊 West Kowloon Freespace</option>
+          <option value="tst-promenade">🗼 TST Promenade</option>
+          <option value="central-piers">⛴️ Central Piers</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="control-row control-row-collapsed" id="manual-controls">
+      <input type="number" id="manual-lat" placeholder="Lat" step="0.0001" />
+      <input type="number" id="manual-lng" placeholder="Lng" step="0.0001" />
+      <input type="number" id="manual-heading" placeholder="Hdg °" min="0" max="359" />
+      <button id="apply-manual" class="btn-apply">Apply</button>
     </div>
   </div>
   
@@ -31,265 +72,219 @@
     <div id="gps-coords">Lat: --, Lng: --</div>
   </div>
   
-  <!-- Instructions panel -->
-  <div id="instructions">
-    <h3>📍 Point your camera at landmarks</h3>
-    <p>Walk around to discover Hong Kong heritage sites</p>
-    <button id="close-instructions">Got it!</button>
-  </div>
-  
   <!-- POI counter -->
   <div id="poi-counter">
     <span id="poi-count">0</span> landmarks nearby
   </div>
   
-  <!-- A-Frame AR Scene -->
+  <!-- Onboarding Coach -->
+  <div id="onboarding-coach" class="hidden">
+    <div class="coach-content">
+      <p id="coach-message"></p>
+      <button id="coach-next" class="btn-coach">Next</button>
+    </div>
+  </div>
+  
+  <!-- Empty State (no POIs in view) -->
+  <div id="empty-state" class="hidden">
+    <div class="empty-content">
+      <p>🔍 No landmarks in view</p>
+      <p class="empty-hint">Turn toward the harbour or choose a Preset</p>
+    </div>
+  </div>
+  
+  <!-- Ghost Hints (off-screen POIs) -->
+  <div id="ghost-hints"></div>
+  
+  <!-- Instructions modal -->
+  <div id="instructions">
+    <div class="instructions-content">
+      <h3>Welcome to Sightline AR</h3>
+      <ul>
+        <li>📍 <strong>Live GPS Mode:</strong> Walk to landmarks (Clock Tower, Star Ferry, etc.)</li>
+        <li>🎭 <strong>Demo Mode:</strong> Preview from anywhere without GPS</li>
+        <li>👀 Point your camera at the skyline to see AR overlays</li>
+        <li>🏙️ Cards show name, year, distance, and description</li>
+        <li>↔️ Turn slowly to discover more landmarks</li>
+        <li>⚙️ Toggle mode in top control bar</li>
+      </ul>
+      <p class="tip">💡 <strong>Tip:</strong> Try West Kowloon Freespace preset for the best skyline view!</p>
+      <button id="close-instructions" class="btn-close">Got it!</button>
+    </div>
+  </div>
+  
+  <!-- A-Frame Scene (Live GPS Mode) -->
   <a-scene
     id="ar-scene"
     vr-mode-ui="enabled: false"
+    arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true;"
+    renderer="logarithmicDepthBuffer: true; precision: medium;"
     embedded
-    arjs="sourceType: webcam; 
-          videoTexture: true; 
-          debugUIEnabled: false;
-          detectionMode: mono_and_matrix;
-          matrixCodeType: 3x3;
-          gpsMinDistance: 5;
-          gpsTimeInterval: 5000;">
+    gesture-detector
+  >
     
-    <!-- Clock Tower POI (22.2946°N, 114.1699°E) -->
+    <!-- Clock Tower (Original) -->
     <a-entity 
-      class="poi-entity"
-      id="poi-clock-tower"
-      gps-entity-place="latitude: 22.2946; longitude: 114.1699">
+      gps-entity-place="latitude: 22.2946; longitude: 114.1699"
+      data-poi-id="clock-tower"
+      class="poi-card"
+    >
+      <a-plane 
+        position="0 0 0" 
+        width="8" 
+        height="4" 
+        color="#ffffff" 
+        opacity="0.95"
+      ></a-plane>
       
-      <!-- Card container -->
-      <a-entity class="ar-card">
-        <!-- Background plane -->
-        <a-plane 
-          position="0 0 0" 
-          rotation="0 0 0" 
-          width="3.5" 
-          height="3" 
-          color="#FFFFFF" 
-          opacity="0.95"
-          shader="flat"
-          side="double">
-        </a-plane>
-        
-        <!-- Colored header bar -->
-        <a-plane
-          position="0 1.2 0.01"
-          width="3.5"
-          height="0.6"
-          color="#4A90E2"
-          opacity="0.9">
-        </a-plane>
-        
-        <!-- Title -->
-        <a-text 
-          value="Clock Tower" 
-          position="0 1.2 0.02" 
-          align="center" 
-          color="#FFFFFF" 
-          width="6"
-          shader="msdf"
-          font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/berkshireswash/BerkshireSwash-Regular.json">
-        </a-text>
-        
-        <!-- Year badge -->
-        <a-circle
-          position="0 0.5 0.01"
-          radius="0.35"
-          color="#FFD700"
-          opacity="0.9">
-        </a-circle>
-        <a-text 
-          value="1915" 
-          position="0 0.5 0.02" 
-          align="center" 
-          color="#000000" 
-          width="3.5">
-        </a-text>
-        
-        <!-- Description -->
-        <a-text 
-          value="Former Kowloon-Canton\nRailway terminus.\n\nOne of Hong Kong's\noldest landmarks." 
-          position="0 -0.3 0.01" 
-          align="center" 
-          color="#333333" 
-          width="6"
-          line-height="50"
-          wrap-count="25">
-        </a-text>
-        
-        <!-- Distance indicator (updated dynamically) -->
-        <a-text 
-          class="distance-text"
-          value="Distance: calculating..." 
-          position="0 -1.1 0.01" 
-          align="center" 
-          color="#888888" 
-          width="5">
-        </a-text>
-      </a-entity>
+      <a-text 
+        value="Clock Tower" 
+        color="#000000" 
+        align="center" 
+        width="7" 
+        position="0 1 0.01"
+        font="roboto"
+      ></a-text>
       
+      <a-text 
+        value="Former railway terminus • 1915" 
+        color="#666666" 
+        align="center" 
+        width="6" 
+        position="0 -0.5 0.01"
+      ></a-text>
+      
+      <a-text 
+        class="distance-text"
+        value="---" 
+        color="#3b82f6" 
+        align="center" 
+        width="6" 
+        position="0 -1.5 0.01"
+      ></a-text>
+      
+      <a-circle 
+        radius="0.8" 
+        color="#3b82f6" 
+        position="3 1.5 0.01"
+      ></a-circle>
+      
+      <a-text 
+        value="1915" 
+        color="#ffffff" 
+        align="center" 
+        width="3" 
+        position="3 1.5 0.02"
+      ></a-text>
     </a-entity>
     
-    <!-- Star Ferry POI (22.2800°N, 114.1587°E) -->
+    <!-- Star Ferry TST (Original) -->
     <a-entity 
-      class="poi-entity"
-      id="poi-star-ferry"
-      gps-entity-place="latitude: 22.2800; longitude: 114.1587">
-      
-      <a-entity class="ar-card">
-        <a-plane 
-          position="0 0 0" 
-          width="3.5" 
-          height="3" 
-          color="#FFFFFF" 
-          opacity="0.95"
-          shader="flat"
-          side="double">
-        </a-plane>
-        
-        <a-plane
-          position="0 1.2 0.01"
-          width="3.5"
-          height="0.6"
-          color="#E74C3C"
-          opacity="0.9">
-        </a-plane>
-        
-        <a-text 
-          value="Star Ferry" 
-          position="0 1.2 0.02" 
-          align="center" 
-          color="#FFFFFF" 
-          width="6"
-          shader="msdf"
-          font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/berkshireswash/BerkshireSwash-Regular.json">
-        </a-text>
-        
-        <a-circle
-          position="0 0.5 0.01"
-          radius="0.35"
-          color="#FFD700"
-          opacity="0.9">
-        </a-circle>
-        <a-text 
-          value="1888" 
-          position="0 0.5 0.02" 
-          align="center" 
-          color="#000000" 
-          width="3.5">
-        </a-text>
-        
-        <a-text 
-          value="Iconic ferry service\nconnecting HK Island\nand Kowloon.\n\nOperating since 1888." 
-          position="0 -0.3 0.01" 
-          align="center" 
-          color="#333333" 
-          width="6"
-          line-height="50"
-          wrap-count="25">
-        </a-text>
-        
-        <a-text 
-          class="distance-text"
-          value="Distance: calculating..." 
-          position="0 -1.1 0.01" 
-          align="center" 
-          color="#888888" 
-          width="5">
-        </a-text>
-      </a-entity>
-      
+      gps-entity-place="latitude: 22.2937; longitude: 114.1703"
+      data-poi-id="star-ferry-tst"
+      class="poi-card"
+    >
+      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="Star Ferry (TST)" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
+      <a-text value="Iconic ferry since 1888" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#ef4444" align="center" width="6" position="0 -1.5 0.01"></a-text>
+      <a-circle radius="0.8" color="#ef4444" position="3 1.5 0.01"></a-circle>
+      <a-text value="1888" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
     </a-entity>
     
-    <!-- Avenue of Stars POI (22.2930°N, 114.1730°E) -->
+    <!-- Avenue of Stars (Original) -->
     <a-entity 
-      class="poi-entity"
-      id="poi-avenue-stars"
-      gps-entity-place="latitude: 22.2930; longitude: 114.1730">
-      
-      <a-entity class="ar-card">
-        <a-plane 
-          position="0 0 0" 
-          width="3.5" 
-          height="3" 
-          color="#FFFFFF" 
-          opacity="0.95"
-          shader="flat"
-          side="double">
-        </a-plane>
-        
-        <a-plane
-          position="0 1.2 0.01"
-          width="3.5"
-          height="0.6"
-          color="#9B59B6"
-          opacity="0.9">
-        </a-plane>
-        
-        <a-text 
-          value="Avenue of Stars" 
-          position="0 1.2 0.02" 
-          align="center" 
-          color="#FFFFFF" 
-          width="6"
-          shader="msdf"
-          font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/berkshireswash/BerkshireSwash-Regular.json">
-        </a-text>
-        
-        <a-circle
-          position="0 0.5 0.01"
-          radius="0.35"
-          color="#FFD700"
-          opacity="0.9">
-        </a-circle>
-        <a-text 
-          value="2004" 
-          position="0 0.5 0.02" 
-          align="center" 
-          color="#000000" 
-          width="3.5">
-        </a-text>
-        
-        <a-text 
-          value="Tribute to Hong Kong\nfilm industry.\n\nHonoring Bruce Lee,\nJackie Chan & more." 
-          position="0 -0.3 0.01" 
-          align="center" 
-          color="#333333" 
-          width="6"
-          line-height="50"
-          wrap-count="25">
-        </a-text>
-        
-        <a-text 
-          class="distance-text"
-          value="Distance: calculating..." 
-          position="0 -1.1 0.01" 
-          align="center" 
-          color="#888888" 
-          width="5">
-        </a-text>
-      </a-entity>
-      
+      gps-entity-place="latitude: 22.2930; longitude: 114.1730"
+      data-poi-id="avenue-stars"
+      class="poi-card"
+    >
+      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="Avenue of Stars" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
+      <a-text value="HK film industry tribute" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#3b82f6" align="center" width="6" position="0 -1.5 0.01"></a-text>
+      <a-circle radius="0.8" color="#3b82f6" position="3 1.5 0.01"></a-circle>
+      <a-text value="2004" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
     </a-entity>
     
-    <!-- Camera with GPS tracking -->
+    <!-- IFC Tower (Skyline - Far Field) -->
+    <a-entity 
+      gps-entity-place="latitude: 22.2855; longitude: 114.1588"
+      data-poi-id="ifc"
+      class="poi-card poi-far"
+    >
+      <a-plane width="15" height="8" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="IFC Tower" color="#000000" align="center" width="14" position="0 2 0.01" font="roboto"></a-text>
+      <a-text value="International Finance Centre • 412m" color="#666666" align="center" width="12" position="0 0 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#3b82f6" align="center" width="12" position="0 -2 0.01"></a-text>
+      <a-circle radius="1.2" color="#3b82f6" position="6 3 0.01"></a-circle>
+      <a-text value="2003" color="#ffffff" align="center" width="4" position="6 3 0.02"></a-text>
+    </a-entity>
+    
+    <!-- ICC (Skyline - Far Field) -->
+    <a-entity 
+      gps-entity-place="latitude: 22.3069; longitude: 114.1617"
+      data-poi-id="icc"
+      class="poi-card poi-far"
+    >
+      <a-plane width="15" height="8" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="ICC" color="#000000" align="center" width="14" position="0 2 0.01"></a-text>
+      <a-text value="International Commerce Centre • 484m" color="#666666" align="center" width="12" position="0 0 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#3b82f6" align="center" width="12" position="0 -2 0.01"></a-text>
+      <a-circle radius="1.2" color="#3b82f6" position="6 3 0.01"></a-circle>
+      <a-text value="2010" color="#ffffff" align="center" width="4" position="6 3 0.02"></a-text>
+    </a-entity>
+    
+    <!-- M+ Museum -->
+    <a-entity 
+      gps-entity-place="latitude: 22.3030; longitude: 114.1605"
+      data-poi-id="mplus"
+      class="poi-card"
+    >
+      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="M+ Museum" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
+      <a-text value="Visual culture museum" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#8b5cf6" align="center" width="6" position="0 -1.5 0.01"></a-text>
+      <a-circle radius="0.8" color="#8b5cf6" position="3 1.5 0.01"></a-circle>
+      <a-text value="2021" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
+    </a-entity>
+    
+    <!-- Xiqu Centre -->
+    <a-entity 
+      gps-entity-place="latitude: 22.3049; longitude: 114.1689"
+      data-poi-id="xiqu"
+      class="poi-card"
+    >
+      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="Xiqu Centre" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
+      <a-text value="Chinese opera & performance" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#ec4899" align="center" width="6" position="0 -1.5 0.01"></a-text>
+      <a-circle radius="0.8" color="#ec4899" position="3 1.5 0.01"></a-circle>
+      <a-text value="2019" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
+    </a-entity>
+    
+    <!-- Star Ferry Central -->
+    <a-entity 
+      gps-entity-place="latitude: 22.2820; longitude: 114.1586"
+      data-poi-id="star-ferry-central"
+      class="poi-card"
+    >
+      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
+      <a-text value="Star Ferry (Central)" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
+      <a-text value="Central pier terminal" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
+      <a-text class="distance-text" value="---" color="#ef4444" align="center" width="6" position="0 -1.5 0.01"></a-text>
+      <a-circle radius="0.8" color="#ef4444" position="3 1.5 0.01"></a-circle>
+      <a-text value="1888" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
+    </a-entity>
+    
+    <!-- Camera with GPS -->
     <a-camera 
-      id="ar-camera"
-      gps-camera="minDistance: 5; maxDistance: 150;" 
+      gps-camera="minDistance: 5; maxDistance: 5000; simulateLatitude: 0; simulateLongitude: 0;"
       rotation-reader
       look-controls-enabled="false"
-      wasd-controls-enabled="false">
-    </a-camera>
+    ></a-camera>
     
   </a-scene>
   
   <script src="app.js"></script>
-  
 </body>
 </html>
-

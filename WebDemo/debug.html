@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sightline Debug - What's Wrong?</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .status {
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border-left: 4px solid;
+    }
+    .pass { background: #065f46; border-color: #10b981; }
+    .fail { background: #7f1d1d; border-color: #ef4444; }
+    .pending { background: #78350f; border-color: #f59e0b; }
+    button {
+      background: #10b981;
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover { background: #059669; }
+    .log {
+      background: #000;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin: 15px 0;
+    }
+    .log-line { margin: 5px 0; }
+    .error { color: #ef4444; }
+    .success { color: #10b981; }
+    .warning { color: #f59e0b; }
+    .info { color: #60a5fa; }
+    h1 { color: #10b981; }
+    h2 { color: #60a5fa; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  
+  <h1>🔍 Sightline Debug Tool</h1>
+  <p>Let's find out why the loading screen is stuck...</p>
+  
+  <h2>Step 1: Browser Support</h2>
+  <div id="browser-check"></div>
+  
+  <h2>Step 2: Test Permissions</h2>
+  <button onclick="testCamera()">📷 Test Camera</button>
+  <button onclick="testGPS()">📍 Test GPS</button>
+  <button onclick="testOrientation()">📱 Test Orientation (iOS)</button>
+  
+  <div id="permission-status"></div>
+  
+  <h2>Step 3: Test AR.js Loading</h2>
+  <button onclick="testARJS()">🔄 Test AR.js Library</button>
+  <div id="arjs-status"></div>
+  
+  <h2>Step 4: Device Info</h2>
+  <div id="device-info"></div>
+  
+  <h2>Live Console Log</h2>
+  <div class="log" id="console-log">
+    <div class="log-line info">Console output will appear here...</div>
+  </div>
+  
+  <h2>Solutions</h2>
+  <div id="solutions"></div>
+  
+  <script>
+    // Capture console logs
+    const logDiv = document.getElementById('console-log');
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    function addLog(message, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `log-line ${type}`;
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logDiv.appendChild(line);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      addLog(args.join(' '), 'info');
+    };
+    
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      addLog('ERROR: ' + args.join(' '), 'error');
+    };
+    
+    console.warn = function(...args) {
+      originalWarn.apply(console, args);
+      addLog('WARNING: ' + args.join(' '), 'warning');
+    };
+    
+    // Browser checks
+    function checkBrowser() {
+      const checks = {
+        'Geolocation API': 'geolocation' in navigator,
+        'Camera API (getUserMedia)': 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices,
+        'Device Orientation': 'DeviceOrientationEvent' in window,
+        'WebGL': (() => {
+          const canvas = document.createElement('canvas');
+          return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+        })(),
+        'HTTPS': window.location.protocol === 'https:' || window.location.hostname === 'localhost'
+      };
+      
+      let html = '';
+      let allPass = true;
+      
+      for (const [name, passed] of Object.entries(checks)) {
+        html += `<div class="status ${passed ? 'pass' : 'fail'}">
+          ${passed ? '✅' : '❌'} ${name}: ${passed ? 'Supported' : 'NOT Supported'}
+        </div>`;
+        if (!passed) allPass = false;
+      }
+      
+      document.getElementById('browser-check').innerHTML = html;
+      
+      if (!allPass) {
+        addSolution('Browser not fully compatible', 
+          'Try using: Safari on iOS 13+ or Chrome on Android 10+. Make sure you\'re using HTTPS (not HTTP).');
+      }
+    }
+    
+    // Test camera
+    async function testCamera() {
+      try {
+        addLog('Requesting camera access...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        
+        addLog('✅ Camera access GRANTED', 'success');
+        stream.getTracks().forEach(track => track.stop());
+        
+        document.getElementById('permission-status').innerHTML += 
+          '<div class="status pass">✅ Camera: Permission granted</div>';
+      } catch (error) {
+        addLog('❌ Camera error: ' + error.message, 'error');
+        
+        document.getElementById('permission-status').innerHTML += 
+          `<div class="status fail">❌ Camera: ${error.name} - ${error.message}</div>`;
+        
+        if (error.name === 'NotAllowedError') {
+          addSolution('Camera permission denied', 
+            'Go to browser Settings → Site settings → Camera → Allow for this site. Then refresh page.');
+        } else if (error.name === 'NotFoundError') {
+          addSolution('No camera found', 
+            'Make sure your device has a camera and no other app is using it.');
+        }
+      }
+    }
+    
+    // Test GPS
+    function testGPS() {
+      addLog('Requesting GPS access...');
+      
+      const timeout = setTimeout(() => {
+        addLog('⚠️ GPS taking too long (>10s)', 'warning');
+        addSolution('GPS timeout', 
+          'Go outside for better GPS signal. GPS needs clear view of the sky.');
+      }, 10000);
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(timeout);
+          addLog(`✅ GPS working! Position: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`, 'success');
+          addLog(`   Accuracy: ±${position.coords.accuracy.toFixed(1)}m`, 'info');
+          
+          document.getElementById('permission-status').innerHTML += 
+            `<div class="status pass">✅ GPS: Lat ${position.coords.latitude.toFixed(5)}, Lng ${position.coords.longitude.toFixed(5)} (±${position.coords.accuracy.toFixed(1)}m)</div>`;
+          
+          if (position.coords.accuracy > 50) {
+            addSolution('Poor GPS accuracy', 
+              'GPS accuracy is ±' + position.coords.accuracy.toFixed(1) + 'm. Go outside or near a window for better signal.');
+          }
+        },
+        (error) => {
+          clearTimeout(timeout);
+          addLog('❌ GPS error: ' + error.message, 'error');
+          
+          document.getElementById('permission-status').innerHTML += 
+            `<div class="status fail">❌ GPS: ${error.message}</div>`;
+          
+          if (error.code === 1) {
+            addSolution('GPS permission denied', 
+              'Go to Settings → Privacy → Location Services → Turn ON for this browser.');
+          } else if (error.code === 2) {
+            addSolution('GPS position unavailable', 
+              'Go outside for better GPS signal. Turn on "High Accuracy" mode in phone settings.');
+          } else if (error.code === 3) {
+            addSolution('GPS timeout', 
+              'GPS signal is weak. Try going outside or near a window.');
+          }
+        },
+        { 
+          enableHighAccuracy: true, 
+          timeout: 10000,
+          maximumAge: 0 
+        }
+      );
+    }
+    
+    // Test orientation (iOS)
+    async function testOrientation() {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          addLog('Requesting motion/orientation permission (iOS)...');
+          const response = await DeviceOrientationEvent.requestPermission();
+          
+          if (response === 'granted') {
+            addLog('✅ Motion permission GRANTED', 'success');
+            document.getElementById('permission-status').innerHTML += 
+              '<div class="status pass">✅ Motion/Orientation: Permission granted</div>';
+          } else {
+            addLog('❌ Motion permission DENIED', 'error');
+            document.getElementById('permission-status').innerHTML += 
+              '<div class="status fail">❌ Motion/Orientation: Permission denied</div>';
+            addSolution('Motion permission denied (iOS)', 
+              'Settings → Safari → Motion & Orientation Access → Turn ON. Then refresh page.');
+          }
+        } catch (error) {
+          addLog('❌ Motion error: ' + error.message, 'error');
+        }
+      } else {
+        addLog('ℹ️ Motion permission not required (Android)', 'info');
+        document.getElementById('permission-status').innerHTML += 
+          '<div class="status pass">✅ Motion/Orientation: No permission needed on this device</div>';
+      }
+    }
+    
+    // Test AR.js
+    function testARJS() {
+      addLog('Testing AR.js library...');
+      
+      // Try loading AR.js
+      const script1 = document.createElement('script');
+      script1.src = 'https://aframe.io/releases/1.4.0/aframe.min.js';
+      script1.onload = () => {
+        addLog('✅ A-Frame loaded successfully', 'success');
+        
+        const script2 = document.createElement('script');
+        script2.src = 'https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js';
+        script2.onload = () => {
+          addLog('✅ AR.js loaded successfully', 'success');
+          document.getElementById('arjs-status').innerHTML = 
+            '<div class="status pass">✅ AR.js libraries loaded successfully</div>';
+        };
+        script2.onerror = () => {
+          addLog('❌ AR.js failed to load', 'error');
+          document.getElementById('arjs-status').innerHTML = 
+            '<div class="status fail">❌ AR.js library failed to load</div>';
+          addSolution('AR.js loading failed', 
+            'Check your internet connection. Try disabling ad blockers. Refresh the page.');
+        };
+        document.head.appendChild(script2);
+      };
+      script1.onerror = () => {
+        addLog('❌ A-Frame failed to load', 'error');
+        document.getElementById('arjs-status').innerHTML = 
+          '<div class="status fail">❌ A-Frame library failed to load</div>';
+        addSolution('A-Frame loading failed', 
+          'Check your internet connection. The CDN might be down. Try again in a few minutes.');
+      };
+      document.head.appendChild(script1);
+    }
+    
+    // Show device info
+    function showDeviceInfo() {
+      const info = {
+        'User Agent': navigator.userAgent,
+        'Platform': navigator.platform,
+        'Language': navigator.language,
+        'Online': navigator.onLine ? 'Yes' : 'No',
+        'Screen Size': `${screen.width}x${screen.height}`,
+        'Viewport': `${window.innerWidth}x${window.innerHeight}`,
+        'Device Memory': navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'Unknown',
+        'Hardware Concurrency': navigator.hardwareConcurrency || 'Unknown',
+        'Connection Type': navigator.connection ? navigator.connection.effectiveType : 'Unknown'
+      };
+      
+      let html = '<div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">';
+      for (const [key, value] of Object.entries(info)) {
+        html += `<div style="margin: 5px 0;"><strong>${key}:</strong> ${value}</div>`;
+      }
+      html += '</div>';
+      
+      document.getElementById('device-info').innerHTML = html;
+    }
+    
+    // Add solution
+    function addSolution(title, description) {
+      const solutionsDiv = document.getElementById('solutions');
+      if (!solutionsDiv.innerHTML.includes(title)) {
+        solutionsDiv.innerHTML += `
+          <div class="status fail">
+            <strong>⚠️ ${title}</strong><br>
+            ${description}
+          </div>
+        `;
+      }
+    }
+    
+    // Run checks on load
+    checkBrowser();
+    showDeviceInfo();
+    
+    // Test basic stuff automatically
+    addLog('Debug tool loaded. Click buttons above to test permissions.');
+    
+  </script>
+  
+  <div style="margin-top: 40px; padding: 20px; background: rgba(16, 185, 129, 0.2); border-radius: 8px; border: 2px solid #10b981;">
+    <h3 style="margin-top: 0;">✅ After fixing issues:</h3>
+    <a href="index.html" style="background: #10b981; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+      Try WebAR App Again
+    </a>
+  </div>
+  
+</body>
+</html>
+
