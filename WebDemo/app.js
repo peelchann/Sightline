@@ -1,22 +1,25 @@
-// Sightline WebAR - Enhanced with Demo Mode & Far-Field Anchoring
-// GPS-based AR for Hong Kong landmarks - Works Anywhere
+// Sightline WebAR - IMU/Compass Hands-Free Edition
+// Look-to-aim AR with real-time orientation tracking
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 const CONFIG = {
-  MAX_DISTANCE: 5000, // meters - increased for skyline landmarks
-  UPDATE_INTERVAL: 1000, // ms - update distance text
+  MAX_DISTANCE: 5000, // meters - skyline landmarks
+  UPDATE_INTERVAL: 500, // ms - faster updates for smooth heading
   GPS_TIMEOUT: 27000, // ms - GPS timeout
-  NEARBY_THRESHOLD: 50, // meters - "nearby" distance
-  MID_RANGE: 200, // meters - mid-range threshold
-  FAR_RANGE: 1000, // meters - far-range threshold (skyline)
+  NEARBY_THRESHOLD: 50, // meters
+  MID_RANGE: 200, // meters
+  FAR_RANGE: 1000, // meters - skyline threshold
   FOV: 60, // degrees - field of view cone
+  HEADING_SMOOTHING: 0.15, // alpha for exponential moving average
+  HEADING_UPDATE_INTERVAL: 100, // ms - high frequency for smooth rotation
+  CALIBRATION_VARIANCE_THRESHOLD: 30, // degrees - if variance exceeds this, show calibration toast
 };
 
 // ============================================================================
-// POI DATA - Extended with Skyline Landmarks
+// POI DATA - Including Hong Kong Palace Museum
 // ============================================================================
 
 const POIS = [
@@ -51,7 +54,7 @@ const POIS = [
     category: 'landmark',
     range: 'mid'
   },
-  // New Skyline POIs
+  // Skyline POIs
   {
     id: 'ifc',
     name: 'IFC Tower',
@@ -103,6 +106,18 @@ const POIS = [
     description: 'Central pier terminal',
     category: 'transport',
     range: 'mid'
+  },
+  // NEW: Hong Kong Palace Museum
+  {
+    id: 'hk-palace-museum',
+    name: 'HK Palace Museum',
+    lat: 22.3015,
+    lng: 114.1607,
+    year: 2022,
+    description: 'Chinese art & Imperial treasures',
+    category: 'museum',
+    range: 'mid',
+    elevation: 40
   }
 ];
 
@@ -135,6 +150,178 @@ const PRESETS = {
 };
 
 // ============================================================================
+// ORIENTATION MANAGER - IMU/Compass Heading Pipeline
+// ============================================================================
+
+const OrientationManager = {
+  enabled: false,
+  heading: 0,
+  smoothedHeading: 0,
+  lastHeading: 0,
+  headingBuffer: [],
+  bufferSize: 10,
+  permissionGranted: false,
+  calibrationNeeded: false,
+  source: 'none', // 'webkit', 'absolute', 'geolocation', 'none'
+  
+  init() {
+    console.log('🧭 Initializing OrientationManager...');
+    
+    // Check if iOS and needs permission
+    if (typeof DeviceOrientationEvent !== 'undefined' && 
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      console.log('📱 iOS device detected - permission required');
+      this.showIOSPermissionUI();
+      return;
+    }
+    
+    // Non-iOS: Start listening immediately
+    this.startListening();
+  },
+  
+  showIOSPermissionUI() {
+    const permissionBtn = document.getElementById('ios-permission-btn');
+    const permissionOverlay = document.getElementById('ios-permission-overlay');
+    
+    if (permissionBtn && permissionOverlay) {
+      permissionOverlay.classList.remove('hidden');
+      
+      permissionBtn.addEventListener('click', async () => {
+        try {
+          const response = await DeviceOrientationEvent.requestPermission();
+          if (response === 'granted') {
+            console.log('✅ iOS motion permission granted');
+            this.permissionGranted = true;
+            permissionOverlay.classList.add('hidden');
+            this.startListening();
+            showSuccess('Motion sensors enabled');
+          } else {
+            console.warn('⚠️ iOS motion permission denied');
+            showError('Motion permission required for hands-free AR');
+          }
+        } catch (error) {
+          console.error('❌ Error requesting permission:', error);
+          showError('Failed to enable motion sensors');
+        }
+      });
+    } else {
+      // Fallback if UI elements not found
+      this.startListening();
+    }
+  },
+  
+  startListening() {
+    console.log('👂 Starting orientation listeners...');
+    this.enabled = true;
+    
+    // Priority 1: iOS webkitCompassHeading
+    window.addEventListener('deviceorientation', (event) => {
+      if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+        this.source = 'webkit';
+        this.updateHeading(event.webkitCompassHeading);
+      } else if (event.absolute && event.alpha !== null) {
+        // Priority 2: Absolute orientation (Android/modern browsers)
+        this.source = 'absolute';
+        const heading = this.calculateHeadingFromAlpha(event.alpha, event.beta, event.gamma);
+        this.updateHeading(heading);
+      }
+    }, true);
+    
+    // Priority 3: Geolocation heading (coarse fallback when moving)
+    navigator.geolocation.watchPosition((position) => {
+      if (position.coords.heading !== null && position.coords.heading !== undefined) {
+        if (this.source === 'none') {
+          this.source = 'geolocation';
+          this.updateHeading(position.coords.heading);
+        }
+      }
+    }, null, { enableHighAccuracy: true });
+    
+    // Start update loop
+    setInterval(() => this.checkCalibration(), 2000);
+    
+    console.log(`✅ Orientation tracking active (source: ${this.source})`);
+  },
+  
+  calculateHeadingFromAlpha(alpha, beta, gamma) {
+    // Convert device orientation to compass heading
+    // alpha: 0-360 (z-axis rotation)
+    // Adjust for device orientation
+    let heading = 360 - alpha;
+    return this.normalizeHeading(heading);
+  },
+  
+  updateHeading(rawHeading) {
+    if (!this.enabled || rawHeading === null || rawHeading === undefined || isNaN(rawHeading)) {
+      return;
+    }
+    
+    // Handle wrap-around (359° → 0°)
+    let delta = rawHeading - this.lastHeading;
+    if (delta > 180) {
+      delta -= 360;
+    } else if (delta < -180) {
+      delta += 360;
+    }
+    
+    // Apply exponential smoothing
+    this.lastHeading = rawHeading;
+    this.smoothedHeading = this.smoothedHeading + CONFIG.HEADING_SMOOTHING * delta;
+    this.smoothedHeading = this.normalizeHeading(this.smoothedHeading);
+    
+    // Buffer for calibration variance check
+    this.headingBuffer.push(rawHeading);
+    if (this.headingBuffer.length > this.bufferSize) {
+      this.headingBuffer.shift();
+    }
+    
+    this.heading = this.smoothedHeading;
+  },
+  
+  normalizeHeading(heading) {
+    while (heading < 0) heading += 360;
+    while (heading >= 360) heading -= 360;
+    return heading;
+  },
+  
+  checkCalibration() {
+    if (this.headingBuffer.length < this.bufferSize) return;
+    
+    // Calculate variance
+    const mean = this.headingBuffer.reduce((a, b) => a + b, 0) / this.headingBuffer.length;
+    const variance = this.headingBuffer.reduce((sum, val) => {
+      const diff = Math.abs(val - mean);
+      // Handle wrap-around in variance calculation
+      const wrappedDiff = Math.min(diff, 360 - diff);
+      return sum + wrappedDiff * wrappedDiff;
+    }, 0) / this.headingBuffer.length;
+    
+    const stdDev = Math.sqrt(variance);
+    
+    if (stdDev > CONFIG.CALIBRATION_VARIANCE_THRESHOLD) {
+      if (!this.calibrationNeeded) {
+        this.calibrationNeeded = true;
+        showCalibrationToast();
+      }
+    } else {
+      this.calibrationNeeded = false;
+    }
+  },
+  
+  getHeading() {
+    return this.heading;
+  },
+  
+  isReady() {
+    return this.enabled && this.source !== 'none';
+  },
+  
+  getSource() {
+    return this.source;
+  }
+};
+
+// ============================================================================
 // DEMO CONTROLLER - Mux Live GPS vs Simulated Position
 // ============================================================================
 
@@ -144,7 +331,6 @@ const DemoController = {
   simLng: null,
   simHeading: 0,
   livePosition: null,
-  liveHeading: 0,
   
   init() {
     // Check URL params
@@ -154,15 +340,7 @@ const DemoController = {
       this.simLat = parseFloat(params.get('lat')) || 22.3045;
       this.simLng = parseFloat(params.get('lng')) || 114.1595;
       this.simHeading = parseFloat(params.get('hdg')) || 120;
-    }
-    
-    // Listen for orientation changes (compass)
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', (e) => {
-        if (e.alpha !== null) {
-          this.liveHeading = 360 - e.alpha; // Convert to true bearing
-        }
-      });
+      console.log(`🎭 Demo mode: ${this.simLat}, ${this.simLng}, hdg: ${this.simHeading}°`);
     }
   },
   
@@ -192,7 +370,7 @@ const DemoController = {
       return {
         lat: this.simLat,
         lng: this.simLng,
-        accuracy: 10 // Fake high accuracy
+        accuracy: 10
       };
     }
     return this.livePosition;
@@ -202,7 +380,8 @@ const DemoController = {
     if (this.mode === 'demo') {
       return this.simHeading;
     }
-    return this.liveHeading;
+    // Use OrientationManager in live mode
+    return OrientationManager.isReady() ? OrientationManager.getHeading() : 0;
   },
   
   updateLivePosition(position, accuracy) {
@@ -246,6 +425,7 @@ const coachMessage = document.getElementById('coach-message');
 const coachNext = document.getElementById('coach-next');
 const emptyState = document.getElementById('empty-state');
 const ghostHints = document.getElementById('ghost-hints');
+const headingDebug = document.getElementById('heading-debug');
 
 // ============================================================================
 // INITIALIZE
@@ -254,7 +434,10 @@ const ghostHints = document.getElementById('ghost-hints');
 window.addEventListener('DOMContentLoaded', init);
 
 function init() {
-  console.log('🚀 Sightline WebAR Enhanced - Initializing...');
+  console.log('🚀 Sightline WebAR IMU Edition - Initializing...');
+  
+  // Initialize orientation manager first
+  OrientationManager.init();
   
   DemoController.init();
   
@@ -333,9 +516,10 @@ function init() {
     });
   }
   
-  // Start distance update interval
+  // Start update intervals
   setInterval(updateDistances, CONFIG.UPDATE_INTERVAL);
-  setInterval(updateVisibilityAndHints, 2000);
+  setInterval(updateVisibilityAndHints, CONFIG.HEADING_UPDATE_INTERVAL);
+  setInterval(updateHeadingDebug, CONFIG.HEADING_UPDATE_INTERVAL);
   
   // Show onboarding on first run
   if (!localStorage.getItem('sightline-onboarded')) {
@@ -355,7 +539,6 @@ function setupControls() {
       switchMode(newMode);
     });
     
-    // Set initial state
     modeToggle.checked = (DemoController.mode === 'demo');
   }
   
@@ -393,7 +576,6 @@ function switchMode(newMode) {
     showSuccess('🎭 Demo mode active - position simulated');
   } else {
     showSuccess('📡 Live GPS mode - using your location');
-    // Reload page to restart GPS
     setTimeout(() => location.reload(), 1000);
   }
 }
@@ -411,7 +593,7 @@ function initDemoMode() {
   if (manualLng) manualLng.value = DemoController.simLng;
   if (manualHeading) manualHeading.value = DemoController.simHeading;
   
-  // Create demo scene without AR.js GPS camera
+  // Create demo scene
   createDemoScene();
   
   // Simulate position update
@@ -451,7 +633,7 @@ function offerDemoMode() {
 }
 
 // ============================================================================
-// DEMO SCENE CREATION
+// DEMO SCENE CREATION WITH PROPER POI CARDS
 // ============================================================================
 
 function createDemoScene() {
@@ -472,12 +654,12 @@ function createDemoScene() {
     scene.appendChild(camera);
   }
   
-  // Create POI entities
+  // Create POI entities with PROPER LABELS (fix white sticker issue)
   POIS.forEach(poi => {
     createPOIEntity(poi);
   });
   
-  console.log('🎬 Demo scene created');
+  console.log('🎬 Demo scene created with proper POI cards');
 }
 
 function createPOIEntity(poi) {
@@ -495,29 +677,46 @@ function createPOIEntity(poi) {
   entity.classList.add('poi-card');
   entity.setAttribute('data-poi-id', poi.id);
   
-  // Will update position based on bearing/distance
+  // Position will be updated based on bearing/distance
   updatePOIPosition(poi);
   
-  // Create card visual
+  // Create card visual - FIX WHITE STICKER BUG
   const cardColor = getCategoryColor(poi.category);
   const isFar = poi.range === 'far';
   
-  // Background plane
+  // Card dimensions
+  const cardWidth = isFar ? 20 : 10;
+  const cardHeight = isFar ? 10 : 5;
+  
+  // Background plane - white with high opacity
   const bg = document.createElement('a-plane');
-  bg.setAttribute('width', isFar ? '15' : '8');
-  bg.setAttribute('height', isFar ? '8' : '4');
+  bg.setAttribute('width', cardWidth);
+  bg.setAttribute('height', cardHeight);
   bg.setAttribute('color', '#ffffff');
-  bg.setAttribute('opacity', '0.95');
+  bg.setAttribute('opacity', '0.98');
+  bg.setAttribute('shader', 'flat'); // Ensure consistent rendering
   entity.appendChild(bg);
   
-  // Title
+  // Header bar with color
+  const header = document.createElement('a-plane');
+  header.setAttribute('width', cardWidth);
+  header.setAttribute('height', isFar ? '2' : '1');
+  header.setAttribute('color', cardColor);
+  header.setAttribute('opacity', '1');
+  header.setAttribute('position', `0 ${isFar ? '4' : '2'} 0.01`);
+  header.setAttribute('shader', 'flat');
+  entity.appendChild(header);
+  
+  // Title (MUST be visible - this fixes the NaN/blank issue)
   const title = document.createElement('a-text');
   title.setAttribute('value', poi.name);
   title.setAttribute('color', '#000000');
   title.setAttribute('align', 'center');
-  title.setAttribute('width', isFar ? '14' : '7');
-  title.setAttribute('position', `0 ${isFar ? '2' : '1'} 0.01`);
+  title.setAttribute('width', cardWidth * 0.9);
+  title.setAttribute('position', `0 ${isFar ? '1' : '0.5'} 0.02`);
   title.setAttribute('font', 'roboto');
+  title.setAttribute('shader', 'msdf'); // Better text rendering
+  title.setAttribute('baseline', 'center');
   entity.appendChild(title);
   
   // Description
@@ -525,35 +724,42 @@ function createPOIEntity(poi) {
   desc.setAttribute('value', poi.description);
   desc.setAttribute('color', '#666666');
   desc.setAttribute('align', 'center');
-  desc.setAttribute('width', isFar ? '12' : '6');
-  desc.setAttribute('position', `0 ${isFar ? '0' : '-0.5'} 0.01`);
+  desc.setAttribute('width', cardWidth * 0.85);
+  desc.setAttribute('position', `0 ${isFar ? '-1' : '-0.8'} 0.02`);
+  desc.setAttribute('shader', 'msdf');
+  desc.setAttribute('baseline', 'center');
   entity.appendChild(desc);
   
-  // Distance label (will be updated)
+  // Distance label (will be updated dynamically)
   const distLabel = document.createElement('a-text');
-  distLabel.setAttribute('value', '---');
+  distLabel.setAttribute('value', 'Calculating...');
   distLabel.setAttribute('color', cardColor);
   distLabel.setAttribute('align', 'center');
-  distLabel.setAttribute('width', '6');
-  distLabel.setAttribute('position', `0 ${isFar ? '-2' : '-1.5'} 0.01`);
-  distLabel.setAttribute('class', 'distance-text');  // Add class for updateDistances()
+  distLabel.setAttribute('width', cardWidth * 0.7);
+  distLabel.setAttribute('position', `0 ${isFar ? '-3' : '-1.8'} 0.02`);
+  distLabel.setAttribute('class', 'distance-text'); // Critical for updateDistances()
+  distLabel.setAttribute('shader', 'msdf');
+  distLabel.setAttribute('baseline', 'center');
   distLabel.id = `distance-${poi.id}`;
   entity.appendChild(distLabel);
   
   // Year badge
   if (poi.year) {
     const yearBadge = document.createElement('a-circle');
-    yearBadge.setAttribute('radius', '0.8');
+    yearBadge.setAttribute('radius', isFar ? '1.2' : '0.9');
     yearBadge.setAttribute('color', cardColor);
-    yearBadge.setAttribute('position', `${isFar ? '6' : '3'} ${isFar ? '3' : '1.5'} 0.01`);
+    yearBadge.setAttribute('position', `${cardWidth * 0.4} ${isFar ? '4' : '2'} 0.02`);
+    yearBadge.setAttribute('shader', 'flat');
     entity.appendChild(yearBadge);
     
     const yearText = document.createElement('a-text');
     yearText.setAttribute('value', poi.year.toString());
     yearText.setAttribute('color', '#ffffff');
     yearText.setAttribute('align', 'center');
-    yearText.setAttribute('width', '3');
-    yearText.setAttribute('position', `${isFar ? '6' : '3'} ${isFar ? '3' : '1.5'} 0.02`);
+    yearText.setAttribute('width', isFar ? '5' : '3');
+    yearText.setAttribute('position', `${cardWidth * 0.4} ${isFar ? '4' : '2'} 0.03`);
+    yearText.setAttribute('shader', 'msdf');
+    yearText.setAttribute('baseline', 'center');
     entity.appendChild(yearText);
   }
   
@@ -561,6 +767,8 @@ function createPOIEntity(poi) {
   entity.setAttribute('look-at', '[camera]');
   
   scene.appendChild(entity);
+  
+  console.log(`✅ Created POI card: ${poi.name}`);
 }
 
 function updatePOIPosition(poi) {
@@ -578,19 +786,19 @@ function updatePOIPosition(poi) {
   const relativeBearing = (bearing - heading + 360) % 360;
   const angleRad = (relativeBearing * Math.PI) / 180;
   
-  // Scale distance for AR world (1m real = 1 unit in AR)
+  // Scale distance for AR world
   const scaledDist = Math.min(distance, 500); // Clamp for visibility
   const x = Math.sin(angleRad) * scaledDist;
   const z = -Math.cos(angleRad) * scaledDist;
   
-  // Height based on distance (skyline effect for far POIs)
-  let y = 0;
+  // Height based on distance (skyline effect)
+  let y = 1.6; // Eye level default
   if (poi.range === 'far' && distance > CONFIG.FAR_RANGE) {
-    y = 50 + (poi.elevation || 200) / 10; // Elevated for skyline
+    y = 30 + (poi.elevation || 200) / 15; // Elevated for skyline
   } else if (distance > CONFIG.MID_RANGE) {
-    y = 20;
+    y = 15;
   } else {
-    y = 10;
+    y = 8;
   }
   
   entity.setAttribute('position', `${x} ${y} ${z}`);
@@ -620,14 +828,14 @@ function onARReady() {
   
   setTimeout(() => {
     loadingOverlay.classList.add('hidden');
-    showSuccess('AR Ready! Point at landmarks to discover.');
+    showSuccess('AR Ready! Turn your phone to discover landmarks.');
   }, 500);
 }
 
-// Timeout fallback - hide loading after 15 seconds even if AR not ready
+// Timeout fallback
 setTimeout(() => {
   if (!arReady) {
-    console.warn('⚠️ AR initialization timeout - hiding loading screen anyway');
+    console.warn('⚠️ AR initialization timeout');
     loadingOverlay.classList.add('hidden');
     offerDemoMode();
   }
@@ -723,7 +931,7 @@ function updateDistances() {
 }
 
 // ============================================================================
-// VISIBILITY & GHOST HINTS
+// VISIBILITY & GHOST HINTS (IMU-driven)
 // ============================================================================
 
 function updateVisibilityAndHints() {
@@ -809,13 +1017,63 @@ function updateGhostHints(offScreenPOIs) {
 }
 
 // ============================================================================
+// HEADING DEBUG DISPLAY
+// ============================================================================
+
+function updateHeadingDebug() {
+  if (!headingDebug) return;
+  
+  const heading = DemoController.getHeading();
+  const source = OrientationManager.getSource();
+  const isReady = OrientationManager.isReady();
+  
+  headingDebug.textContent = `🧭 ${Math.round(heading)}° (${source}) ${isReady ? '✓' : '✗'}`;
+  headingDebug.style.color = isReady ? '#4ADE80' : '#ef4444';
+}
+
+// ============================================================================
+// CALIBRATION TOAST
+// ============================================================================
+
+function showCalibrationToast() {
+  const toast = document.createElement('div');
+  toast.className = 'calibration-toast';
+  toast.innerHTML = `
+    <div class="calibration-content">
+      <span class="calibration-icon">🧭</span>
+      <span>Compass low confidence</span>
+      <button class="calibration-dismiss">✕</button>
+    </div>
+    <div class="calibration-hint">Move phone in a figure-8 to calibrate</div>
+  `;
+  
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  const dismissBtn = toast.querySelector('.calibration-dismiss');
+  dismissBtn.addEventListener('click', () => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  });
+  
+  // Auto-dismiss after 10 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 10000);
+}
+
+// ============================================================================
 // ONBOARDING COACH
 // ============================================================================
 
 const ONBOARDING_STEPS = [
-  "This is Sightline. Anchors appear on the skyline where you're looking.",
-  "Turn your head slowly—cards slide in when landmarks enter your field of view.",
-  "Tap ⭐ Save to keep anything you discover."
+  "This is Sightline. Turn your phone to see landmarks appear as you face them.",
+  "No touching needed—just look around! Cards show name, year, and distance.",
+  "Ghost hints (← →) guide you to landmarks outside your view."
 ];
 
 function showOnboarding() {
@@ -938,8 +1196,18 @@ window.SightlineAR = {
     const preset = DemoController.loadPreset(key);
     applyDemo();
     return preset;
-  }
+  },
+  // Orientation debug
+  getOrientationStatus: () => ({
+    enabled: OrientationManager.enabled,
+    heading: OrientationManager.heading,
+    smoothedHeading: OrientationManager.smoothedHeading,
+    source: OrientationManager.source,
+    isReady: OrientationManager.isReady(),
+    calibrationNeeded: OrientationManager.calibrationNeeded
+  })
 };
 
-console.log('✅ Sightline WebAR Enhanced - Ready');
+console.log('✅ Sightline WebAR IMU Edition - Ready');
 console.log('💡 Debug API: window.SightlineAR');
+console.log('🧭 OrientationManager active');
