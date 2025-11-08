@@ -89,6 +89,16 @@ const POIS = [
     elevation: 40
   },
   {
+    id: 'palace-museum',
+    name: 'Hong Kong Palace Museum',
+    lat: 22.3016,
+    lng: 114.1600,
+    year: 2022,
+    description: 'Chinese art & culture',
+    category: 'museum',
+    range: 'mid'
+  },
+  {
     id: 'mplus',
     name: 'M+ Museum',
     lat: 22.3030,
