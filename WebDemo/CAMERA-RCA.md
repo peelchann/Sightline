@@ -39,7 +39,11 @@
 **Hypothesis**: Video is 0×0 or positioned off-screen  
 **Test**: Check video `width`, `height`, `position`  
 **Priority**: MEDIUM  
-**Status**: ⏳ TO TEST
+**Status**: ✅ **CONFIRMED ROOT CAUSE**
+**Evidence**: 
+- Video Size: 0×0 (should be 1280×960 or similar)
+- Video exists, srcObject attached, but videoWidth/videoHeight = 0
+- This means video stream is not rendering
 
 #### RC-1.4: Video stream not attached to element
 **Hypothesis**: Video element exists but `srcObject` is null  
@@ -61,7 +65,11 @@
 **Hypothesis**: AR.js needs explicit play() call after permissions  
 **Test**: Try calling `video.play()` manually  
 **Priority**: HIGH  
-**Status**: ⏳ TO TEST
+**Status**: ✅ **LIKELY RELATED**
+**Evidence**: 
+- Video Paused: Yes (should be No)
+- Video needs to be played to start rendering frames
+- iOS may require explicit play() call
 
 #### RC-2.3: AR.js sourceType config wrong
 **Hypothesis**: `sourceType: webcam` not working on iOS  
@@ -149,7 +157,7 @@
 **Hypothesis**: Video needs `playsinline` attribute on iOS  
 **Test**: Check if video has `playsinline` attribute  
 **Priority**: HIGH  
-**Status**: ⏳ TO TEST
+**Status**: ⏳ TO TEST (need to check video attributes)
 
 #### RC-6.2: iOS autoplay policy blocking
 **Hypothesis**: iOS blocking autoplay without user gesture  
@@ -242,5 +250,73 @@ if (video) {
 
 ---
 
-**Next Step**: Implement Phase 1 diagnostic overlay to gather information.
+**Next Step**: ~~Implement Phase 1 diagnostic overlay to gather information.~~ ✅ DONE
+
+---
+
+## 🎯 DIAGNOSTIC RESULTS
+
+### **From Field Test Screenshot:**
+
+```
+✅ Video exists
+Size: 0×0          ← ⚠️ PROBLEM #1: Video dimensions are 0×0
+Ready: 0/4         ← ⚠️ PROBLEM #2: Video not ready (should be 4/4)
+SrcObj: Yes        ← ✅ Good: MediaStream attached
+Paused: Yes        ← ⚠️ PROBLEM #3: Video is paused (should be playing)
+Display: inline    ← ✅ Good: Video is visible
+Visibility: visible ← ✅ Good: Not hidden
+Opacity: 1         ← ✅ Good: Fully opaque
+Z-index: auto      ← ✅ Good: Normal stacking
+✅ Scene exists
+Loaded: Yes        ← ✅ Good: A-Frame loaded
+AR.js: Yes         ← ✅ Good: AR.js initialized
+✅ Canvas exists
+Canvas Size: 0×0   ← ⚠️ PROBLEM #4: Canvas also 0×0
+```
+
+### **Root Cause Analysis:**
+
+**PRIMARY ISSUE**: Video is **paused** and has **0×0 dimensions**
+
+**Why this happens:**
+1. AR.js creates video element ✅
+2. AR.js attaches MediaStream to video.srcObject ✅
+3. AR.js does NOT call video.play() ❌
+4. Video stays paused, never loads frames
+5. Video dimensions stay 0×0 (no frames = no size)
+6. Canvas copies from 0×0 video = black screen
+
+**Secondary Issues:**
+- `readyState: 0/4` - Video hasn't loaded metadata yet (because it's paused)
+- Canvas `0×0` - Canvas mirrors video dimensions
+
+### **Solution:**
+
+**FIX #1: Force video.play() after permissions granted**
+- Explicitly call `video.play()` after AR.js initializes
+- Add `playsinline` attribute for iOS
+- Add `autoplay` attribute
+- Add `muted` attribute (required for autoplay on iOS)
+
+**FIX #2: Wait for video metadata before proceeding**
+- Listen for `loadedmetadata` event
+- Ensure video dimensions are set before rendering
+
+**FIX #3: Add explicit video attributes to A-Frame scene**
+- Set `videoTexture: true` (already done)
+- Add iOS-specific attributes
+
+---
+
+## 🔧 IMPLEMENTING FIX #1
+
+**Target**: RC-2.2 + RC-6.1 + RC-6.2
+
+**Changes needed:**
+1. Find video element after AR.js creates it
+2. Add `playsinline`, `autoplay`, `muted` attributes
+3. Call `video.play()` explicitly
+4. Wait for `loadedmetadata` event
+5. Verify video dimensions > 0
 
