@@ -850,6 +850,31 @@ async function handleStartClick() {
       loadingOverlay.style.display = 'none';
     }
 
+    // Wait for A-Frame scene to be ready
+    const scene = document.querySelector('a-scene');
+    if (scene) {
+      console.log('[StartPage] Waiting for A-Frame scene...');
+      
+      // If scene already loaded, proceed
+      if (scene.hasLoaded) {
+        console.log('[StartPage] Scene already loaded');
+      } else {
+        // Wait for scene to load
+        await new Promise((resolve) => {
+          scene.addEventListener('loaded', () => {
+            console.log('[StartPage] Scene loaded');
+            resolve();
+          });
+        });
+      }
+
+      // Force AR.js to start camera
+      const arSystem = scene.systems['arjs'];
+      if (arSystem) {
+        console.log('[StartPage] AR.js system found, initializing camera...');
+      }
+    }
+
     // Initialize app
     app = new SightlineApp();
     await app.init();
