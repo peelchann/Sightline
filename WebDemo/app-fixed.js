@@ -844,6 +844,12 @@ async function handleStartClick() {
     startScreen.style.display = 'none';
     arScreen.style.display = 'block';
 
+    // Hide loading overlay (it's blocking the camera)
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      loadingOverlay.style.display = 'none';
+    }
+
     // Initialize app
     app = new SightlineApp();
     await app.init();
