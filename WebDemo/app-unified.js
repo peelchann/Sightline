@@ -440,6 +440,40 @@ const UI = {
       errorEl.style.display = 'none';
     }
   },
+  
+  /**
+   * Set CTA button loading state
+   */
+  setCtaLoading(loading) {
+    const btnEnable = document.getElementById('cta-enable');
+    const btnDemo = document.getElementById('cta-demo');
+    
+    if (btnEnable) {
+      if (loading) {
+        btnEnable.disabled = true;
+        btnEnable.textContent = 'Requesting permissions...';
+        btnEnable.style.opacity = '0.7';
+        btnEnable.style.cursor = 'not-allowed';
+      } else {
+        btnEnable.disabled = false;
+        btnEnable.textContent = 'Enable Camera, Location & Motion';
+        btnEnable.style.opacity = '1';
+        btnEnable.style.cursor = 'pointer';
+      }
+    }
+    
+    if (btnDemo) {
+      if (loading) {
+        btnDemo.disabled = true;
+        btnDemo.style.opacity = '0.7';
+        btnDemo.style.cursor = 'not-allowed';
+      } else {
+        btnDemo.disabled = false;
+        btnDemo.style.opacity = '1';
+        btnDemo.style.cursor = 'pointer';
+      }
+    }
+  },
 };
 
 // ============================================================================
@@ -656,78 +690,273 @@ class SightlineApp {
 }
 
 // ============================================================================
+// ON-SCREEN LOGGER (for iOS debugging)
+// ============================================================================
+
+const LogPanel = {
+  el: null,
+  logs: [],
+  maxLogs: 20,
+  
+  init() {
+    this.el = document.getElementById('dev-log');
+    if (!this.el) {
+      // Create log panel if it doesn't exist
+      const panel = document.createElement('div');
+      panel.id = 'dev-log';
+      panel.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 300px;
+        max-height: 200px;
+        background: rgba(0, 0, 0, 0.9);
+        color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 10px;
+        z-index: 10000;
+        overflow-y: auto;
+        display: none;
+      `;
+      document.body.appendChild(panel);
+      this.el = panel;
+    }
+    
+    // Intercept console methods
+    ['log', 'warn', 'error'].forEach(type => {
+      const original = console[type].bind(console);
+      console[type] = (...args) => {
+        original(...args);
+        this.push(`[${type.toUpperCase()}] ${args.join(' ')}`);
+      };
+    });
+    
+    this.push('Log panel initialized');
+  },
+  
+  push(message) {
+    if (!this.el) return;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const line = `[${timestamp}] ${message}`;
+    this.logs.push(line);
+    
+    if (this.logs.length > this.maxLogs) {
+      this.logs.shift();
+    }
+    
+    this.el.innerHTML = this.logs.map(log => `<div>${log}</div>`).join('');
+    this.el.scrollTop = this.el.scrollHeight;
+    
+    // Show panel
+    this.el.style.display = 'block';
+  },
+  
+  show() {
+    if (this.el) this.el.style.display = 'block';
+  },
+  
+  hide() {
+    if (this.el) this.el.style.display = 'none';
+  }
+};
+
+// ============================================================================
 // INIT FLOW
 // ============================================================================
 
+async function onEnableClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  LogPanel.push('Enable button clicked');
+  console.log('[Init] User clicked enable permissions');
+  
+  const btn = e.currentTarget;
+  
+  // Immediate visual feedback
+  UI.setCtaLoading(true);
+  setState(AppState.REQUESTING_PERMS, { msg: 'Requesting Camera, Location, Motion...' });
+  UI.hideError();
+  
+  try {
+    LogPanel.push('Requesting all permissions...');
+    const results = await Permissions.requestAll();
+    
+    // Check if all required permissions granted
+    const allOk = results.camera.ok && results.location.ok && results.motion.ok;
+    
+    if (!allOk) {
+      const explanation = Permissions.explain(results);
+      LogPanel.push(`❌ Permissions failed: ${explanation}`);
+      console.error('[Init] ❌ Not all permissions granted:', explanation);
+      setState(AppState.ERROR, { msg: explanation });
+      UI.showError(explanation);
+      UI.setCtaLoading(false);
+      return;
+    }
+    
+    LogPanel.push('✅ All permissions granted');
+    console.log('[Init] ✅ All permissions granted');
+    setState(AppState.READY, { msg: 'Initializing AR...' });
+    
+    // Initialize app
+    const app = new SightlineApp();
+    window.APP = app;
+    await app.init(results);
+    
+    LogPanel.push('✅ AR initialized');
+    setState(AppState.RUNNING, { msg: 'Live AR Mode' });
+    UI.setCtaLoading(false);
+  } catch (error) {
+    LogPanel.push(`❌ Error: ${error.message}`);
+    console.error('[Init] ❌ Error during permission request:', error);
+    setState(AppState.ERROR, { msg: error.message || 'Permission error' });
+    UI.showError(error.message || 'Permission error');
+    UI.setCtaLoading(false);
+  }
+}
+
+function onDemoClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  LogPanel.push('Demo mode button clicked');
+  console.log('[Init] User clicked demo mode');
+  
+  setState(AppState.READY, { msg: 'Initializing Demo Mode...' });
+  
+  const app = new SightlineApp();
+  window.APP = app;
+  app.initDemoMode();
+  
+  LogPanel.push('✅ Demo mode initialized');
+  setState(AppState.RUNNING, { msg: 'Demo Mode (No Sensors)' });
+}
+
+function onRetryClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  LogPanel.push('Retry button clicked');
+  console.log('[Init] User clicked retry');
+  setState(AppState.PERMISSION_GATE);
+  UI.hideError();
+  UI.setCtaLoading(false);
+}
+
 async function startApp() {
   console.log('[Init] Starting app...');
+  LogPanel.push('App starting...');
+  
+  // Security check
+  if (!window.isSecureContext) {
+    const error = 'App requires HTTPS. Current context is not secure.';
+    LogPanel.push(`❌ ${error}`);
+    setState(AppState.ERROR, { msg: error });
+    UI.showError(error);
+    return;
+  }
+  
+  // Diagnostics
+  LogPanel.push(`User Agent: ${navigator.userAgent}`);
+  LogPanel.push(`Secure Context: ${window.isSecureContext}`);
+  LogPanel.push(`Has Focus: ${document.hasFocus()}`);
   
   setState(AppState.PERMISSION_GATE);
   
-  // Enable permissions button
+  // Global click listener for debugging
+  document.body.addEventListener('click', (e) => {
+    LogPanel.push(`Global click detected on: ${e.target.tagName} #${e.target.id || 'no-id'}`);
+    console.log('[Debug] Global click:', e.target);
+  }, { passive: true });
+  
+  // Wire up button handlers with proper event listeners
   const ctaEnable = document.getElementById('cta-enable');
-  if (ctaEnable) {
-    ctaEnable.onclick = async () => {
-      console.log('[Init] User clicked enable permissions');
-      
-      setState(AppState.REQUESTING_PERMS, { msg: 'Requesting Camera, Location, Motion...' });
-      UI.hideError();
-      
-      try {
-        const results = await Permissions.requestAll();
-        
-        // Check if all required permissions granted
-        const allOk = results.camera.ok && results.location.ok && results.motion.ok;
-        
-        if (!allOk) {
-          const explanation = Permissions.explain(results);
-          console.error('[Init] ❌ Not all permissions granted:', explanation);
-          setState(AppState.ERROR, { msg: explanation });
-          UI.showError(explanation);
-          return;
-        }
-        
-        console.log('[Init] ✅ All permissions granted');
-        setState(AppState.READY, { msg: 'Initializing AR...' });
-        
-        // Initialize app
-        const app = new SightlineApp();
-        window.APP = app;
-        await app.init(results);
-        
-        setState(AppState.RUNNING, { msg: 'Live AR Mode' });
-      } catch (error) {
-        console.error('[Init] ❌ Error during permission request:', error);
-        setState(AppState.ERROR, { msg: error.message || 'Permission error' });
-        UI.showError(error.message || 'Permission error');
-      }
-    };
-  }
-  
-  // Demo mode button
   const ctaDemo = document.getElementById('cta-demo');
-  if (ctaDemo) {
-    ctaDemo.onclick = () => {
-      console.log('[Init] User clicked demo mode');
-      
-      setState(AppState.READY, { msg: 'Initializing Demo Mode...' });
-      
-      const app = new SightlineApp();
-      window.APP = app;
-      app.initDemoMode();
-      
-      setState(AppState.RUNNING, { msg: 'Demo Mode (No Sensors)' });
-    };
+  const ctaRetry = document.getElementById('cta-retry');
+  
+  if (ctaEnable) {
+    LogPanel.push('✅ Enable button found');
+    
+    // Ensure button is clickable
+    ctaEnable.style.pointerEvents = 'auto';
+    ctaEnable.style.cursor = 'pointer';
+    ctaEnable.style.userSelect = 'none';
+    ctaEnable.style.webkitUserSelect = 'none';
+    ctaEnable.style.touchAction = 'manipulation';
+    
+    // Add both click and touchstart for iOS
+    ctaEnable.addEventListener('click', onEnableClick, { passive: false });
+    ctaEnable.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      LogPanel.push('Enable button touchstart');
+      onEnableClick(e);
+    }, { passive: false });
+    
+    // Visual confirmation - pulse highlight
+    ctaEnable.style.transition = 'all 0.3s';
+    setTimeout(() => {
+      ctaEnable.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.5)';
+      setTimeout(() => {
+        ctaEnable.style.boxShadow = '';
+      }, 500);
+    }, 100);
+  } else {
+    LogPanel.push('❌ Enable button NOT found!');
+    console.error('[Init] ❌ cta-enable button not found');
   }
   
-  // Retry button
-  const ctaRetry = document.getElementById('cta-retry');
+  if (ctaDemo) {
+    LogPanel.push('✅ Demo button found');
+    
+    // Ensure button is clickable
+    ctaDemo.style.pointerEvents = 'auto';
+    ctaDemo.style.cursor = 'pointer';
+    ctaDemo.style.userSelect = 'none';
+    ctaDemo.style.webkitUserSelect = 'none';
+    ctaDemo.style.touchAction = 'manipulation';
+    
+    // Add both click and touchstart for iOS
+    ctaDemo.addEventListener('click', onDemoClick, { passive: false });
+    ctaDemo.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      LogPanel.push('Demo button touchstart');
+      onDemoClick(e);
+    }, { passive: false });
+  } else {
+    LogPanel.push('❌ Demo button NOT found!');
+    console.error('[Init] ❌ cta-demo button not found');
+  }
+  
   if (ctaRetry) {
-    ctaRetry.onclick = () => {
-      console.log('[Init] User clicked retry');
-      setState(AppState.PERMISSION_GATE);
-      UI.hideError();
-    };
+    LogPanel.push('✅ Retry button found');
+    
+    // Ensure button is clickable
+    ctaRetry.style.pointerEvents = 'auto';
+    ctaRetry.style.cursor = 'pointer';
+    ctaRetry.style.userSelect = 'none';
+    ctaRetry.style.webkitUserSelect = 'none';
+    ctaRetry.style.touchAction = 'manipulation';
+    
+    // Add both click and touchstart for iOS
+    ctaRetry.addEventListener('click', onRetryClick, { passive: false });
+    ctaRetry.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      LogPanel.push('Retry button touchstart');
+      onRetryClick(e);
+    }, { passive: false });
+  }
+  
+  // Debug: Log button positions and styles
+  if (ctaEnable) {
+    const rect = ctaEnable.getBoundingClientRect();
+    const styles = window.getComputedStyle(ctaEnable);
+    LogPanel.push(`Enable button: ${rect.width}x${rect.height} at (${rect.left}, ${rect.top})`);
+    LogPanel.push(`Pointer events: ${styles.pointerEvents}, Z-index: ${styles.zIndex}`);
+    LogPanel.push(`Display: ${styles.display}, Visibility: ${styles.visibility}`);
   }
 }
 
@@ -737,6 +966,11 @@ async function startApp() {
 
 window.addEventListener('DOMContentLoaded', () => {
   console.log('[Init] DOM loaded, initializing FSM...');
+  console.log('[Init] App booted');
+  
+  // Initialize log panel first
+  LogPanel.init();
+  LogPanel.push('DOM loaded');
   
   setState(AppState.INIT);
   
@@ -746,8 +980,23 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 100);
 });
 
+// Also try immediate initialization if DOM already loaded
+if (document.readyState === 'loading') {
+  // Wait for DOMContentLoaded
+} else {
+  // DOM already loaded, initialize now
+  console.log('[Init] DOM already loaded, initializing immediately...');
+  LogPanel.init();
+  LogPanel.push('DOM already loaded');
+  setState(AppState.INIT);
+  setTimeout(() => {
+    startApp();
+  }, 100);
+}
+
 // Expose for debugging
 window.Permissions = Permissions;
 window.AppState = AppState;
 window.setState = setState;
+window.LogPanel = LogPanel;
 
