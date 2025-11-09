@@ -770,17 +770,31 @@ class SightlineApp {
 
     // Video element check
     if (video) {
-      debugInfo.push(`✅ Video exists`);
-      debugInfo.push(`Size: ${video.videoWidth}×${video.videoHeight}`);
-      debugInfo.push(`Ready: ${video.readyState}/4`);
-      debugInfo.push(`SrcObj: ${video.srcObject ? 'Yes' : 'No'}`);
-      debugInfo.push(`Paused: ${video.paused ? 'Yes' : 'No'}`);
+      const isWorking = video.videoWidth > 0 && video.videoHeight > 0 && !video.paused;
+      
+      if (isWorking) {
+        debugInfo.push(`✅ Video WORKING!`);
+      } else {
+        debugInfo.push(`⚠️ Video exists but not working`);
+      }
+      
+      debugInfo.push(`Size: ${video.videoWidth}×${video.videoHeight}${video.videoWidth === 0 ? ' ❌' : ' ✅'}`);
+      debugInfo.push(`Ready: ${video.readyState}/4${video.readyState === 4 ? ' ✅' : ' ⚠️'}`);
+      debugInfo.push(`SrcObj: ${video.srcObject ? 'Yes ✅' : 'No ❌'}`);
+      debugInfo.push(`Paused: ${video.paused ? 'Yes ❌' : 'No ✅'}`);
       
       const style = window.getComputedStyle(video);
       debugInfo.push(`Display: ${style.display}`);
       debugInfo.push(`Visibility: ${style.visibility}`);
       debugInfo.push(`Opacity: ${style.opacity}`);
       debugInfo.push(`Z-index: ${style.zIndex}`);
+      
+      // Show attributes
+      const attrs = [];
+      if (video.hasAttribute('playsinline')) attrs.push('playsinline');
+      if (video.hasAttribute('autoplay')) attrs.push('autoplay');
+      if (video.hasAttribute('muted')) attrs.push('muted');
+      debugInfo.push(`Attrs: ${attrs.join(', ') || 'none'}`);
     } else {
       debugInfo.push(`❌ Video not found`);
     }
@@ -878,6 +892,70 @@ class SightlineApp {
 
 let app = null;
 
+/**
+ * Force video element to play (FIX #1)
+ */
+async function forceVideoPlay() {
+  console.log('[VideoFix] Looking for video element...');
+  
+  // Wait for video element to be created by AR.js
+  let video = null;
+  let attempts = 0;
+  const maxAttempts = 20; // 2 seconds max
+  
+  while (!video && attempts < maxAttempts) {
+    video = document.querySelector('video');
+    if (!video) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+  }
+  
+  if (!video) {
+    console.error('[VideoFix] Video element not found after 2 seconds');
+    return;
+  }
+  
+  console.log('[VideoFix] Video element found');
+  
+  // Add iOS-required attributes
+  video.setAttribute('playsinline', '');
+  video.setAttribute('autoplay', '');
+  video.setAttribute('muted', '');
+  video.muted = true; // Ensure muted (required for autoplay on iOS)
+  
+  console.log('[VideoFix] Added playsinline, autoplay, muted attributes');
+  
+  // Wait for video metadata to load
+  if (video.readyState < 1) {
+    console.log('[VideoFix] Waiting for video metadata...');
+    await new Promise((resolve) => {
+      video.addEventListener('loadedmetadata', () => {
+        console.log('[VideoFix] Video metadata loaded');
+        console.log('[VideoFix] Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+        resolve();
+      }, { once: true });
+      
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        console.warn('[VideoFix] Metadata load timeout');
+        resolve();
+      }, 5000);
+    });
+  }
+  
+  // Force play
+  try {
+    console.log('[VideoFix] Calling video.play()...');
+    await video.play();
+    console.log('[VideoFix] ✅ Video playing successfully!');
+    console.log('[VideoFix] Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+    console.log('[VideoFix] Video readyState:', video.readyState);
+  } catch (error) {
+    console.error('[VideoFix] ❌ Failed to play video:', error);
+  }
+}
+
 async function handleStartClick() {
   const startScreen = document.getElementById('start-screen');
   const arScreen = document.getElementById('ar-screen');
@@ -922,11 +1000,8 @@ async function handleStartClick() {
         });
       }
 
-      // Force AR.js to start camera
-      const arSystem = scene.systems['arjs'];
-      if (arSystem) {
-        console.log('[StartPage] AR.js system found, initializing camera...');
-      }
+      // FIX #1: Force video to play
+      await this.forceVideoPlay();
     }
 
     // Initialize app
