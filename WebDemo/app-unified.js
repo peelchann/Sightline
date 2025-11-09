@@ -58,24 +58,39 @@ const Permissions = {
   },
   
   /**
-   * Request all permissions in sequence
+   * Request all permissions in PARALLEL (after user gesture)
    */
   async requestAll() {
-    console.log('[Permissions] Starting unified permission request...');
+    console.log('[Permissions] Starting unified permission request (parallel)...');
     
-    // 1. Camera
+    // Mark all as requesting
     UI.tickPermit('camera', 'requesting');
-    this.results.camera = await this.requestCamera();
-    UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
-    
-    // 2. Location
     UI.tickPermit('location', 'requesting');
-    this.results.location = await this.requestLocation();
-    UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
-    
-    // 3. Motion (iOS requires user gesture, so this must be called from click handler)
     UI.tickPermit('motion', 'requesting');
-    this.results.motion = await this.requestMotion();
+    
+    // Request all in parallel using Promise.allSettled
+    const [camResult, geoResult, motResult] = await Promise.allSettled([
+      this.requestCamera(),
+      this.requestLocation(),
+      this.requestMotion(),
+    ]);
+    
+    // Extract results
+    this.results.camera = camResult.status === 'fulfilled' 
+      ? camResult.value 
+      : { ok: false, error: camResult.reason?.message || 'unknown' };
+    
+    this.results.location = geoResult.status === 'fulfilled'
+      ? geoResult.value
+      : { ok: false, position: null, watchId: null, error: geoResult.reason?.message || 'unknown' };
+    
+    this.results.motion = motResult.status === 'fulfilled'
+      ? motResult.value
+      : { ok: false, error: motResult.reason?.message || 'unknown' };
+    
+    // Update UI
+    UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
+    UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
     UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
     
     console.log('[Permissions] All requests completed:', this.results);
@@ -83,22 +98,37 @@ const Permissions = {
   },
   
   /**
-   * Request camera permission
+   * Request camera permission with iOS fallback constraints
    */
   async requestCamera() {
     try {
       console.log('[Permissions] Requesting camera...');
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 960 },
-        },
-        audio: false,
-      });
+      // Try multiple constraint sets (iOS fallback)
+      const constraintsList = [
+        { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
+        { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
+        { video: { facingMode: 'environment' }, audio: false },
+        { video: true, audio: false },
+      ];
       
-      console.log('[Permissions] ✅ Camera granted');
+      let stream = null;
+      let lastError = null;
+      
+      for (const constraints of constraintsList) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log('[Permissions] ✅ Camera granted with constraints:', constraints);
+          break;
+        } catch (error) {
+          lastError = error;
+          console.warn('[Permissions] Camera constraint failed, trying next...', error.name);
+        }
+      }
+      
+      if (!stream) {
+        throw new Error(`camera_failed:${lastError?.name || 'unknown'}`);
+      }
       
       // Store stream for later use
       window.CAMERA_STREAM = stream;
@@ -106,27 +136,56 @@ const Permissions = {
       return { ok: true, stream, error: null };
     } catch (error) {
       console.error('[Permissions] ❌ Camera denied:', error);
-      return { ok: false, stream: null, error: error.message };
+      return { ok: false, stream: null, error: error.message || 'camera_failed' };
     }
   },
   
   /**
-   * Request location permission
+   * Request location permission with better error handling
    */
   async requestLocation() {
     try {
       console.log('[Permissions] Requesting location...');
       
-      // First, get current position
+      if (!('geolocation' in navigator)) {
+        throw new Error('geo_unavailable');
+      }
+      
+      // Check permission state (if available)
+      let permState = 'prompt';
+      try {
+        const perm = await navigator.permissions?.query?.({ name: 'geolocation' });
+        permState = perm?.state || 'prompt';
+        console.log('[Permissions] Geolocation permission state:', permState);
+      } catch (e) {
+        // Permissions API not available, continue anyway
+      }
+      
+      // First, get current position with longer timeout for iOS
       const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        });
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          (error) => {
+            // Map error codes to messages
+            let errorMsg = 'geo_error:';
+            switch (error.code) {
+              case 1: errorMsg += 'PERMISSION_DENIED'; break;
+              case 2: errorMsg += 'POSITION_UNAVAILABLE'; break;
+              case 3: errorMsg += 'TIMEOUT'; break;
+              default: errorMsg += error.code;
+            }
+            reject(new Error(errorMsg));
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 20000, // 20 seconds for iOS
+            maximumAge: 0,
+          }
+        );
       });
       
       console.log('[Permissions] ✅ Location granted:', position.coords);
+      console.log('[Permissions] Location accuracy:', position.coords.accuracy, 'm');
       
       // Start watching position
       const watchId = navigator.geolocation.watchPosition(
@@ -147,7 +206,7 @@ const Permissions = {
       return { ok: true, position, watchId, error: null };
     } catch (error) {
       console.error('[Permissions] ❌ Location denied:', error);
-      return { ok: false, position: null, watchId: null, error: error.message };
+      return { ok: false, position: null, watchId: null, error: error.message || 'geo_error' };
     }
   },
   
@@ -158,30 +217,79 @@ const Permissions = {
     try {
       console.log('[Permissions] Requesting motion/orientation...');
       
-      // Check if iOS permission API exists
-      if (typeof DeviceOrientationEvent !== 'undefined' && 
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        console.log('[Permissions] iOS detected, requesting DeviceOrientation permission...');
+      // Check if iOS permission API exists (DeviceOrientationEvent or DeviceMotionEvent)
+      const needsIOSPermission = 
+        (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') ||
+        (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function');
+      
+      if (needsIOSPermission) {
+        console.log('[Permissions] iOS detected, requesting motion permission...');
         
-        const permission = await DeviceOrientationEvent.requestPermission();
+        // Try DeviceOrientationEvent first, then DeviceMotionEvent
+        let permission = null;
+        
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          try {
+            permission = await DeviceOrientationEvent.requestPermission();
+            console.log('[Permissions] DeviceOrientationEvent permission:', permission);
+          } catch (e) {
+            console.warn('[Permissions] DeviceOrientationEvent.requestPermission failed:', e);
+          }
+        }
+        
+        // Also request DeviceMotionEvent if available
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          try {
+            const motionPerm = await DeviceMotionEvent.requestPermission();
+            console.log('[Permissions] DeviceMotionEvent permission:', motionPerm);
+            // Use the more restrictive permission
+            if (permission !== 'granted' && motionPerm === 'granted') {
+              permission = motionPerm;
+            } else if (motionPerm !== 'granted') {
+              permission = motionPerm;
+            }
+          } catch (e) {
+            console.warn('[Permissions] DeviceMotionEvent.requestPermission failed:', e);
+          }
+        }
         
         if (permission === 'granted') {
           console.log('[Permissions] ✅ iOS motion granted');
           this.attachMotionListeners();
           return { ok: true, error: null };
         } else {
-          console.warn('[Permissions] ⚠️ iOS motion denied');
-          return { ok: false, error: 'Motion permission denied' };
+          console.warn('[Permissions] ⚠️ iOS motion denied:', permission);
+          return { ok: false, error: 'motion_denied' };
         }
       } else {
-        // Non-iOS: just attach listeners
-        console.log('[Permissions] Non-iOS, attaching motion listeners directly...');
-        this.attachMotionListeners();
-        return { ok: true, error: null };
+        // Non-iOS: attach listeners and verify events arrive
+        console.log('[Permissions] Non-iOS, verifying motion events...');
+        return new Promise((resolve) => {
+          let gotEvent = false;
+          const timeout = setTimeout(() => {
+            if (!gotEvent) {
+              console.warn('[Permissions] ⚠️ No motion events received');
+              resolve({ ok: false, error: 'motion_unavailable' });
+            }
+          }, 1500);
+          
+          const onEvent = () => {
+            gotEvent = true;
+            clearTimeout(timeout);
+            window.removeEventListener('deviceorientation', onEvent);
+            window.removeEventListener('deviceorientationabsolute', onEvent);
+            this.attachMotionListeners();
+            console.log('[Permissions] ✅ Motion events confirmed');
+            resolve({ ok: true, error: null });
+          };
+          
+          window.addEventListener('deviceorientation', onEvent, { once: true });
+          window.addEventListener('deviceorientationabsolute', onEvent, { once: true });
+        });
       }
     } catch (error) {
       console.error('[Permissions] ❌ Motion error:', error);
-      return { ok: false, error: error.message };
+      return { ok: false, error: error.message || 'motion_error' };
     }
   },
   
