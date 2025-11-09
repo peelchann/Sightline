@@ -3,44 +3,203 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Sightline WebAR - Works Anywhere</title>
+  <title>Sightline WebAR - Unified Permissions</title>
   <meta name="description" content="Discover Hong Kong landmarks through augmented reality">
   
   <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   
-  <link rel="stylesheet" href="styles.css">
-  
-  <!-- Critical CSS for UI V2 (inlined for performance) -->
   <style>
-    /* Design Tokens - Critical subset */
-    :root {
-      --sightline-bg-card: rgba(250, 250, 250, 0.95);
-      --sightline-bg-chip: rgba(255, 255, 255, 0.85);
-      --sightline-bg-arrow: rgba(0, 0, 0, 0.7);
-      --sightline-text-primary: #111;
-      --sightline-text-secondary: #555;
-      --sightline-text-distance: #007AFF;
-      --sightline-text-light: #FFF;
-      --sightline-leader-line: #222;
-      --sightline-shadow: rgba(0, 0, 0, 0.15);
-      --category-landmark: #FF6B35;
-      --category-museum: #6B4FBB;
-      --category-transport: #007AFF;
-      --category-nature: #34C759;
-      --space-xs: 4px;
-      --space-sm: 8px;
-      --space-md: 12px;
-      --space-lg: 16px;
-      --duration-base: 200ms;
-      --easing-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
-      --z-edge-arrow: 80;
-      --z-side-chip: 90;
-      --z-center-card: 100;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
     
-    /* Ensure A-Frame scene and video are visible */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+    }
+    
+    /* ===== START SCREEN ===== */
+    #start-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    
+    .start-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .start-card h1 {
+      color: #111;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
+    .start-card p {
+      color: #555;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    
+    /* State Banner */
+    .state-banner {
+      background: #f0f0f0;
+      color: #666;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 24px;
+      font-family: monospace;
+    }
+    
+    .state-banner.requesting {
+      background: #FFF3CD;
+      color: #856404;
+    }
+    
+    .state-banner.success {
+      background: #D4EDDA;
+      color: #155724;
+    }
+    
+    .state-banner.error {
+      background: #F8D7DA;
+      color: #721C24;
+    }
+    
+    /* Permission Checklist */
+    .permit-list {
+      list-style: none;
+      margin-bottom: 24px;
+    }
+    
+    .permit-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      transition: all 0.3s;
+    }
+    
+    .permit-item.requesting {
+      background: #FFF3CD;
+    }
+    
+    .permit-item.ok {
+      background: #D4EDDA;
+    }
+    
+    .permit-item.error {
+      background: #F8D7DA;
+    }
+    
+    .permit-icon {
+      font-size: 20px;
+      margin-right: 12px;
+      min-width: 24px;
+    }
+    
+    .permit-label {
+      flex: 1;
+      color: #333;
+      font-weight: 500;
+    }
+    
+    .permit-desc {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Error Message */
+    #error-message {
+      background: #F8D7DA;
+      color: #721C24;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    /* ===== AR SCREEN ===== */
+    #ar-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+    
+    /* A-Frame Scene */
     #ar-scene {
       position: fixed !important;
       top: 0 !important;
@@ -59,469 +218,138 @@
       height: 100% !important;
       object-fit: cover !important;
     }
+    
+    /* IMU HUD */
+    #imu-hud {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+      line-height: 1.6;
+    }
+    
+    #imu-hud strong {
+      color: #4ADE80;
+    }
+    
+    /* Mode Badge */
+    .mode-badge {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 193, 7, 0.9);
+      color: #000;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      z-index: 100;
+    }
+    
+    .mode-badge.live {
+      background: rgba(76, 175, 80, 0.9);
+      color: #fff;
+    }
   </style>
-  
-  <!-- UI V2 Styles (deferred) -->
-  <link rel="stylesheet" href="styles-ui-v2.css">
-  
-  <!-- Category Icons (inline SVG) -->
-  <svg style="display: none;" aria-hidden="true">
-    <defs>
-      <!-- Landmark Icon -->
-      <symbol id="icon-landmark" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l7 3.5v6.64l-7 3.5-7-3.5V7.68l7-3.5z"/>
-      </symbol>
-      
-      <!-- Museum Icon -->
-      <symbol id="icon-museum" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 3L2 8v2h20V8l-10-5zm-8 7v9h2v-9H4zm4 0v9h2v-9H8zm4 0v9h2v-9h-2zm4 0v9h2v-9h-2zm4 0v9h2v-9h-2zM2 20v2h20v-2H2z"/>
-      </symbol>
-      
-      <!-- Transport Icon -->
-      <symbol id="icon-transport" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M20 16v-5l1.5-4.5C21.8 5.6 21 5 20 5H4c-1 0-1.8.6-1.5 1.5L4 11v5c0 1.1.9 2 2 2h0c0 1.1.9 2 2 2s2-.9 2-2h4c0 1.1.9 2 2 2s2-.9 2-2h0c1.1 0 2-.9 2-2zM6 18c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm2.5-9L7 5h10l-1.5 4h-7zM16 18c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/>
-      </symbol>
-      
-      <!-- Nature Icon -->
-      <symbol id="icon-nature" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M14 6l-3.75 5 2.85 3.8-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22L14 6z"/>
-      </symbol>
-      
-      <!-- Star Icon (Save button) -->
-      <symbol id="icon-star" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-      </symbol>
-      
-      <!-- Chevron Left -->
-      <symbol id="icon-chevron-left" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-      </symbol>
-      
-      <!-- Chevron Right -->
-      <symbol id="icon-chevron-right" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-      </symbol>
-    </defs>
-  </svg>
 </head>
 <body>
-  
-  <!-- Start Screen (Permission Gate) -->
-  <div id="start-screen" style="
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-  ">
-    <div style="
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 24px;
-      padding: 40px 32px;
-      max-width: 400px;
-      margin: 20px;
-      text-align: center;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    ">
-      <h1 style="
-        font-size: 32px;
-        font-weight: 700;
-        color: #111;
-        margin: 0 0 16px 0;
-      ">Welcome to Sightline AR</h1>
+
+  <!-- START SCREEN -->
+  <div id="start-screen">
+    <div class="start-card">
+      <h1>🎯 Sightline WebAR</h1>
+      <p>Discover Hong Kong landmarks through augmented reality. We need access to your camera, location, and motion sensors.</p>
       
-      <p style="
-        font-size: 16px;
-        color: #555;
-        margin: 0 0 32px 0;
-        line-height: 1.6;
-      ">
-        To use AR features, we need access to:
-      </p>
+      <!-- State Banner -->
+      <div id="state-banner" class="state-banner">INIT</div>
       
-      <div style="text-align: left; margin: 0 0 32px 0;">
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 24px; margin-right: 12px;">📷</span>
-          <span style="font-size: 14px; color: #333;"><strong>Camera</strong> - See the world</span>
-        </div>
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-          <span style="font-size: 24px; margin-right: 12px;">📍</span>
-          <span style="font-size: 14px; color: #333;"><strong>Location</strong> - Find nearby landmarks</span>
-        </div>
-        <div style="display: flex; align-items: center;">
-          <span style="font-size: 24px; margin-right: 12px;">🧭</span>
-          <span style="font-size: 14px; color: #333;"><strong>Motion</strong> - Track where you're looking</span>
-        </div>
-      </div>
+      <!-- Error Message -->
+      <div id="error-message"></div>
       
-      <button id="start-btn" style="
-        width: 100%;
-        padding: 16px 24px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 18px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-      " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+      <!-- Permission Checklist -->
+      <ul class="permit-list">
+        <li class="permit-item" data-permit="camera">
+          <span class="permit-icon">⭕</span>
+          <div>
+            <div class="permit-label">Camera</div>
+            <div class="permit-desc">To see the real world</div>
+          </div>
+        </li>
+        <li class="permit-item" data-permit="location">
+          <span class="permit-icon">⭕</span>
+          <div>
+            <div class="permit-label">Location (GPS)</div>
+            <div class="permit-desc">To find nearby landmarks</div>
+          </div>
+        </li>
+        <li class="permit-item" data-permit="motion">
+          <span class="permit-icon">⭕</span>
+          <div>
+            <div class="permit-label">Motion & Orientation</div>
+            <div class="permit-desc">To track where you're looking</div>
+          </div>
+        </li>
+      </ul>
+      
+      <!-- Action Buttons -->
+      <button id="cta-enable" class="btn btn-primary">
         Enable Camera, Location & Motion
       </button>
       
-      <p id="permission-status" style="
-        font-size: 12px;
-        color: #888;
-        margin: 16px 0 0 0;
-        min-height: 20px;
-      "></p>
-    </div>
-  </div>
-  
-  <!-- AR Screen (hidden initially) -->
-  <div id="ar-screen" style="display: none;">
-  
-  <!-- IMU Debug HUD -->
-  <div id="imu-hud" style="
-    position: fixed;
-    top: 80px;
-    left: 16px;
-    background: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 12px;
-    z-index: 1000;
-    line-height: 1.6;
-  ">
-    <div><strong>Heading:</strong> <span id="heading-value">—</span></div>
-    <div><strong>GPS:</strong> <span id="gps-value">—</span></div>
-    <div><strong>Accuracy:</strong> <span id="accuracy-value">—</span></div>
-  </div>
-  
-  <!-- Camera Debug Overlay -->
-  <div id="camera-debug" style="
-    position: fixed;
-    bottom: 80px;
-    left: 16px;
-    background: rgba(255, 0, 0, 0.9);
-    color: #fff;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 10px;
-    z-index: 1000;
-    line-height: 1.4;
-    max-width: 300px;
-  ">
-    Checking camera...
-  </div>
-  
-  <!-- Loading overlay (hidden initially, start screen handles permissions) -->
-  <div id="loading-overlay" style="display: none;">
-    <div class="loading-content">
-      <div class="spinner"></div>
-      <h2>Initializing AR...</h2>
-      <p id="loading-status">Requesting permissions...</p>
-      <button id="skip-loading" style="
-        margin-top: 20px;
-        padding: 10px 20px;
-        background: rgba(255,255,255,0.2);
-        color: #fff;
-        border: 2px solid rgba(255,255,255,0.5);
-        border-radius: 8px;
-        font-size: 14px;
-        cursor: pointer;
-        display: none;
-      ">Skip & Try Demo Mode</button>
-      <p style="font-size: 12px; margin-top: 10px; color: rgba(255,255,255,0.6);">
-        Stuck? Try <a href="debug.html" style="color: #4ADE80;">Debug Tool</a>
-      </p>
-    </div>
-  </div>
-  
-  <!-- Control Bar (Demo Mode) -->
-  <div id="control-bar">
-    <div class="control-row">
-      <div class="control-group">
-        <label class="switch">
-          <input type="checkbox" id="mode-toggle">
-          <span class="slider"></span>
-        </label>
-        <span class="control-label">Demo Mode</span>
-      </div>
+      <button id="cta-demo" class="btn btn-secondary">
+        Continue in Demo Mode (No Sensors)
+      </button>
       
-      <div class="control-group">
-        <select id="preset-picker">
-          <option value="">Choose preset...</option>
-          <option value="freespace">🌊 West Kowloon Freespace</option>
-          <option value="tst-promenade">🗼 TST Promenade</option>
-          <option value="central-piers">⛴️ Central Piers</option>
-        </select>
-      </div>
-    </div>
-    
-    <div class="control-row control-row-collapsed" id="manual-controls">
-      <input type="number" id="manual-lat" placeholder="Lat" step="0.0001" />
-      <input type="number" id="manual-lng" placeholder="Lng" step="0.0001" />
-      <input type="number" id="manual-heading" placeholder="Hdg °" min="0" max="359" />
-      <button id="apply-manual" class="btn-apply">Apply</button>
+      <button id="cta-retry" class="btn btn-secondary" style="display: none;">
+        🔄 Retry Permissions
+      </button>
     </div>
   </div>
-  
-  <!-- GPS & Heading indicators -->
-  <div id="gps-info">
-    <div id="gps-accuracy">GPS: Waiting...</div>
-    <div id="gps-coords">Lat: --, Lng: --</div>
-    <div id="heading-display">Heading: --</div>
-  </div>
-  
-  <!-- Calibration toast (top center) -->
-  <div id="calibration-toast" class="hidden"></div>
-  
-  <!-- iOS Permission button -->
-  <button id="permission-btn" style="display: none;">Enable Motion & Orientation</button>
-  
-  <!-- POI counter -->
-  <div id="poi-counter">
-    <span id="poi-count">0</span> landmarks nearby
-  </div>
-  
-  <!-- Help button -->
-  <button id="help-button" class="help-btn" aria-label="Help">?</button>
-  
-  <!-- Onboarding Coach -->
-  <div id="onboarding-coach" class="hidden">
-    <div class="coach-content">
-      <p id="coach-message"></p>
-      <button id="coach-next" class="btn-coach">Next</button>
+
+  <!-- AR SCREEN -->
+  <div id="ar-screen">
+    <!-- Mode Badge -->
+    <div id="mode-badge" class="mode-badge live">LIVE AR</div>
+    
+    <!-- IMU HUD -->
+    <div id="imu-hud">
+      <div><strong>Heading:</strong> <span id="heading-value">—</span></div>
+      <div><strong>GPS:</strong> <span id="gps-value">—</span></div>
+      <div><strong>Accuracy:</strong> <span id="accuracy-value">—</span></div>
     </div>
+    
+    <!-- A-Frame AR Scene -->
+    <a-scene
+      id="ar-scene"
+      embedded
+      arjs="
+        sourceType: webcam;
+        videoTexture: true;
+        debugUIEnabled: false;
+        sourceWidth: 1280;
+        sourceHeight: 960;
+        displayWidth: 1280;
+        displayHeight: 960;
+      "
+      vr-mode-ui="enabled: false"
+      loading-screen="enabled: false"
+      renderer="logarithmicDepthBuffer: true; precision: medium;"
+    >
+      <!-- Camera -->
+      <a-camera gps-camera rotation-reader></a-camera>
+      
+      <!-- POIs will be added dynamically by app.js -->
+    </a-scene>
   </div>
-  
-  <!-- Empty State (no POIs in view) -->
-  <div id="empty-state" class="hidden">
-    <div class="empty-content">
-      <p>🔍 No landmarks in view</p>
-      <p class="empty-hint">Turn toward the harbour or choose a Preset</p>
-    </div>
-  </div>
-  
-  <!-- Ghost Hints (off-screen POIs) -->
-  <div id="ghost-hints"></div>
-  
-  <!-- Instructions modal -->
-  <div id="instructions" class="hidden">
-    <div class="instructions-content">
-      <h3>Welcome to Sightline AR</h3>
-      <ul>
-        <li>📍 <strong>Live GPS Mode:</strong> Walk to landmarks (Clock Tower, Star Ferry, etc.)</li>
-        <li>🎭 <strong>Demo Mode:</strong> Preview from anywhere without GPS</li>
-        <li>👀 Point your camera at the skyline to see AR overlays</li>
-        <li>🏙️ Cards show name, year, distance, and description</li>
-        <li>↔️ Turn slowly to discover more landmarks</li>
-        <li>⚙️ Toggle mode in top control bar</li>
-      </ul>
-      <p class="tip">💡 <strong>Tip:</strong> Try West Kowloon Freespace preset for the best skyline view!</p>
-      <button id="close-instructions" class="btn-close">Got it!</button>
-    </div>
-  </div>
-  
-  <!-- A-Frame Scene (Live GPS Mode) -->
-  <a-scene
-    id="ar-scene"
-    vr-mode-ui="enabled: false"
-    arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960;"
-    renderer="logarithmicDepthBuffer: true; precision: medium;"
-    embedded
-    gesture-detector
-    loading-screen="enabled: false"
-  >
-    
-    <!-- Clock Tower (Original) -->
-    <a-entity 
-      gps-entity-place="latitude: 22.2946; longitude: 114.1699"
-      data-poi-id="clock-tower"
-      class="poi-card"
-    >
-      <a-plane 
-        position="0 0 0" 
-        width="8" 
-        height="4" 
-        color="#ffffff" 
-        opacity="0.95"
-      ></a-plane>
-      
-      <a-text 
-        value="Clock Tower" 
-        color="#000000" 
-        align="center" 
-        width="7" 
-        position="0 1 0.01"
-        font="roboto"
-      ></a-text>
-      
-      <a-text 
-        value="Former railway terminus • 1915" 
-        color="#666666" 
-        align="center" 
-        width="6" 
-        position="0 -0.5 0.01"
-      ></a-text>
-      
-      <a-text 
-        class="distance-text"
-        value="---" 
-        color="#3b82f6" 
-        align="center" 
-        width="6" 
-        position="0 -1.5 0.01"
-      ></a-text>
-      
-      <a-circle 
-        radius="0.8" 
-        color="#3b82f6" 
-        position="3 1.5 0.01"
-      ></a-circle>
-      
-      <a-text 
-        value="1915" 
-        color="#ffffff" 
-        align="center" 
-        width="3" 
-        position="3 1.5 0.02"
-      ></a-text>
-    </a-entity>
-    
-    <!-- Star Ferry TST (Original) -->
-    <a-entity 
-      gps-entity-place="latitude: 22.2937; longitude: 114.1703"
-      data-poi-id="star-ferry-tst"
-      class="poi-card"
-    >
-      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="Star Ferry (TST)" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
-      <a-text value="Iconic ferry since 1888" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#ef4444" align="center" width="6" position="0 -1.5 0.01"></a-text>
-      <a-circle radius="0.8" color="#ef4444" position="3 1.5 0.01"></a-circle>
-      <a-text value="1888" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
-    </a-entity>
-    
-    <!-- Avenue of Stars (Original) -->
-    <a-entity 
-      gps-entity-place="latitude: 22.2930; longitude: 114.1730"
-      data-poi-id="avenue-stars"
-      class="poi-card"
-    >
-      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="Avenue of Stars" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
-      <a-text value="HK film industry tribute" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#3b82f6" align="center" width="6" position="0 -1.5 0.01"></a-text>
-      <a-circle radius="0.8" color="#3b82f6" position="3 1.5 0.01"></a-circle>
-      <a-text value="2004" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
-    </a-entity>
-    
-    <!-- IFC Tower (Skyline - Far Field) -->
-    <a-entity 
-      gps-entity-place="latitude: 22.2855; longitude: 114.1588"
-      data-poi-id="ifc"
-      class="poi-card poi-far"
-    >
-      <a-plane width="15" height="8" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="IFC Tower" color="#000000" align="center" width="14" position="0 2 0.01" font="roboto"></a-text>
-      <a-text value="International Finance Centre • 412m" color="#666666" align="center" width="12" position="0 0 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#3b82f6" align="center" width="12" position="0 -2 0.01"></a-text>
-      <a-circle radius="1.2" color="#3b82f6" position="6 3 0.01"></a-circle>
-      <a-text value="2003" color="#ffffff" align="center" width="4" position="6 3 0.02"></a-text>
-    </a-entity>
-    
-    <!-- ICC (Skyline - Far Field) -->
-    <a-entity 
-      gps-entity-place="latitude: 22.3069; longitude: 114.1617"
-      data-poi-id="icc"
-      class="poi-card poi-far"
-    >
-      <a-plane width="15" height="8" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="ICC" color="#000000" align="center" width="14" position="0 2 0.01"></a-text>
-      <a-text value="International Commerce Centre • 484m" color="#666666" align="center" width="12" position="0 0 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#3b82f6" align="center" width="12" position="0 -2 0.01"></a-text>
-      <a-circle radius="1.2" color="#3b82f6" position="6 3 0.01"></a-circle>
-      <a-text value="2010" color="#ffffff" align="center" width="4" position="6 3 0.02"></a-text>
-    </a-entity>
-    
-    <!-- M+ Museum -->
-    <a-entity 
-      gps-entity-place="latitude: 22.3030; longitude: 114.1605"
-      data-poi-id="mplus"
-      class="poi-card"
-    >
-      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="M+ Museum" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
-      <a-text value="Visual culture museum" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#8b5cf6" align="center" width="6" position="0 -1.5 0.01"></a-text>
-      <a-circle radius="0.8" color="#8b5cf6" position="3 1.5 0.01"></a-circle>
-      <a-text value="2021" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
-    </a-entity>
-    
-    <!-- Xiqu Centre -->
-    <a-entity 
-      gps-entity-place="latitude: 22.3049; longitude: 114.1689"
-      data-poi-id="xiqu"
-      class="poi-card"
-    >
-      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="Xiqu Centre" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
-      <a-text value="Chinese opera & performance" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#ec4899" align="center" width="6" position="0 -1.5 0.01"></a-text>
-      <a-circle radius="0.8" color="#ec4899" position="3 1.5 0.01"></a-circle>
-      <a-text value="2019" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
-    </a-entity>
-    
-    <!-- Star Ferry Central -->
-    <a-entity 
-      gps-entity-place="latitude: 22.2820; longitude: 114.1586"
-      data-poi-id="star-ferry-central"
-      class="poi-card"
-    >
-      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="Star Ferry (Central)" color="#000000" align="center" width="7" position="0 1 0.01"></a-text>
-      <a-text value="Central pier terminal" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#ef4444" align="center" width="6" position="0 -1.5 0.01"></a-text>
-      <a-circle radius="0.8" color="#ef4444" position="3 1.5 0.01"></a-circle>
-      <a-text value="1888" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
-    </a-entity>
-    
-    <!-- Hong Kong Palace Museum -->
-    <a-entity 
-      gps-entity-place="latitude: 22.3015; longitude: 114.1605"
-      data-poi-id="hk-palace-museum"
-      class="poi-card"
-    >
-      <a-plane width="8" height="4" color="#ffffff" opacity="0.95"></a-plane>
-      <a-text value="HK Palace Museum" color="#000000" align="center" width="7" position="0 1 0.01" font="roboto"></a-text>
-      <a-text value="Chinese art from Forbidden City" color="#666666" align="center" width="6" position="0 -0.5 0.01"></a-text>
-      <a-text class="distance-text" value="---" color="#8b5cf6" align="center" width="6" position="0 -1.5 0.01"></a-text>
-      <a-circle radius="0.8" color="#8b5cf6" position="3 1.5 0.01"></a-circle>
-      <a-text value="2022" color="#ffffff" align="center" width="3" position="3 1.5 0.02"></a-text>
-    </a-entity>
-    
-    <!-- Camera with GPS -->
-    <a-camera 
-      gps-camera="minDistance: 5; maxDistance: 5000; simulateLatitude: 0; simulateLongitude: 0;"
-      rotation-reader
-      look-controls-enabled="false"
-    ></a-camera>
-    
-  </a-scene>
-  
-  </div> <!-- End ar-screen -->
-  
-  <!-- Fixed app logic (permission-gated, NaN-safe, real-time IMU) -->
-  <script src="app-fixed.js"></script>
+
+  <!-- App Script -->
+  <script src="app-unified.js"></script>
 </body>
 </html>
+
