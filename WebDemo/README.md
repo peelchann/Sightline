@@ -5,7 +5,14 @@ GPS-based augmented reality for Hong Kong landmarks. Works on iPhone Safari and 
 ## 🎯 Features
 
 - **Zero Install**: Just visit URL in mobile browser
-- **3 POIs**: Clock Tower, Star Ferry, Avenue of Stars
+- **8+ POIs**: Clock Tower, Star Ferry, IFC, ICC, M+, Palace Museum, and more
+- **3-Tier UI System**: Progressive disclosure based on where you're looking
+  - **Center-Lock Card**: Full details when aligned with POI (≤5°)
+  - **Side Chips**: Compact hints in peripheral vision (5-30°)
+  - **Edge Arrows**: Off-screen indicators (30-90°)
+- **Hands-Free UX**: No touch needed - just turn your head
+- **Real-Time IMU**: Instant heading updates from phone compass/gyro
+- **No Label Overlaps**: Smart collision detection
 - **GPS Tracking**: Real-time position updates
 - **Distance Display**: See how far you are from landmarks
 - **Outdoor Optimized**: High-contrast UI for sunlight readability
@@ -216,6 +223,95 @@ const POIS = [
 - **Camera feed** not recorded or transmitted
 - **Location data** rounded to 3 decimal places (±111m) if logged
 
+## 🎨 UI V2 System Architecture
+
+### 3-Tier Progressive Disclosure
+
+The UI automatically adapts based on where you're looking:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    USER HEADING                         │
+│                         ↓                               │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐         │
+│  │  HIDDEN  │ ←→ │ OFF_FOV  │ ←→ │  IN_FOV  │ ←→      │
+│  │  >90°    │    │ 30-90°   │    │  5-30°   │         │
+│  └──────────┘    └──────────┘    └──────────┘         │
+│                                         ↕               │
+│                                  ┌──────────┐          │
+│                                  │ CENTER   │          │
+│                                  │  ≤5°     │          │
+│                                  └──────────┘          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**State Transitions** (with hysteresis to prevent flicker):
+- **HIDDEN** (|Δ°| > 90°): POI is behind you → No UI
+- **OFF_FOV** (30° < |Δ°| ≤ 90°): POI is off-screen → **Edge Arrow**
+- **IN_FOV** (5° < |Δ°| ≤ 30°): POI is in peripheral vision → **Side Chip**
+- **CENTER_LOCK** (|Δ°| ≤ 5°): POI is directly ahead → **Center Card**
+
+**Hysteresis**: Lock at 5°, unlock at 7° (prevents rapid toggling)
+
+### Component Specs
+
+| Component | Size | Content | Max Visible |
+|-----------|------|---------|-------------|
+| **Center Card** | 280×160px | Title, description, distance, Save button, leader line | 1 |
+| **Side Chip** | 120×48px | Icon, name, distance | 2 |
+| **Edge Arrow** | 80×32px | Chevron, name, distance | 3 |
+
+### Collision Detection
+
+- **Algorithm**: Greedy, priority-based (center > side > edge)
+- **Method**: 2D AABB (Axis-Aligned Bounding Box)
+- **Nudging**: ±8px vertical increments (max 3 attempts)
+- **Fallback**: Hide lower-priority items if collision unavoidable
+
+### Performance Budget
+
+- **Heading Updates**: 20 FPS (50ms interval)
+- **Distance Updates**: 10 FPS (100ms interval)
+- **Layout Updates**: 2 FPS (500ms interval)
+- **Target FPS**: ≥50 FPS overall
+- **Bundle Size**: <50KB (UI V2 modules, gzipped)
+
+### Debug API
+
+```javascript
+// Get UI state summary
+window.SightlineUIV2.getDebugInfo();
+/* Returns:
+{
+  stateManager: {
+    total: 8,
+    byState: { hidden: 3, off_fov: 2, in_fov: 1, center_lock: 1 },
+    visible: [...]
+  },
+  layoutEngine: {
+    placed: 4,
+    visible: 4,
+    byTier: { center: 1, side: 1, edge: 2 }
+  }
+}
+*/
+
+// Toggle collision visualization (Ctrl+K)
+window.SightlineUIV2.toggleCollisionVisualization();
+```
+
+### File Structure
+
+```
+/WebDemo/
+├── styles-ui-v2.css          ← Design tokens + component styles
+├── ui-components.js          ← CenterLockCard, SideChip, EdgeArrow classes
+├── ui-state-manager.js       ← State machine with hysteresis
+├── ui-layout-engine.js       ← Collision detection + priority sorting
+├── ui-v2-integration.js      ← Bridge to existing app logic
+└── index.html                ← Inline critical CSS + SVG icons
+```
+
 ## 📖 Technical Documentation
 
 See `../TECH-ARCHITECTURE.md` for detailed explanation of:
@@ -223,6 +319,7 @@ See `../TECH-ARCHITECTURE.md` for detailed explanation of:
 - GPS → 3D coordinate conversion
 - Coordinate systems
 - Tech stack breakdown
+- UI V2 state machine math
 
 ## 🐛 Debugging
 
