@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sightline Debug - Unified FSM</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      margin-bottom: 20px;
+      color: #10b981;
+    }
+    
+    .section {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .section h2 {
+      margin-bottom: 15px;
+      color: #60a5fa;
+      font-size: 18px;
+    }
+    
+    .status-grid {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .label {
+      color: #9ca3af;
+      font-weight: 600;
+    }
+    
+    .value {
+      font-family: 'Courier New', monospace;
+      color: #10b981;
+    }
+    
+    .value.error {
+      color: #ef4444;
+    }
+    
+    .value.warning {
+      color: #f59e0b;
+    }
+    
+    .btn {
+      background: #10b981;
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .btn:hover {
+      background: #059669;
+    }
+    
+    .btn-secondary {
+      background: #374151;
+    }
+    
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+    
+    .log {
+      background: #000;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    
+    .log-line {
+      margin: 3px 0;
+    }
+    
+    .log-fsm {
+      color: #a78bfa;
+    }
+    
+    .log-perm {
+      color: #60a5fa;
+    }
+    
+    .log-ui {
+      color: #10b981;
+    }
+    
+    .log-app {
+      color: #f59e0b;
+    }
+    
+    .log-error {
+      color: #ef4444;
+    }
+    
+    .state-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    
+    .state-INIT {
+      background: #374151;
+    }
+    
+    .state-PERMISSION_GATE {
+      background: #1e40af;
+    }
+    
+    .state-REQUESTING_PERMS {
+      background: #f59e0b;
+    }
+    
+    .state-READY {
+      background: #059669;
+    }
+    
+    .state-RUNNING {
+      background: #10b981;
+    }
+    
+    .state-ERROR {
+      background: #ef4444;
+    }
+    
+    .history-item {
+      padding: 8px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .timestamp {
+      color: #6b7280;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🐛 Sightline Debug - Unified FSM</h1>
+    
+    <!-- Current State -->
+    <div class="section">
+      <h2>Current State</h2>
+      <div class="status-grid">
+        <div class="label">FSM State:</div>
+        <div class="value" id="current-state">—</div>
+        
+        <div class="label">Screen:</div>
+        <div class="value" id="current-screen">—</div>
+      </div>
+    </div>
+    
+    <!-- Permissions -->
+    <div class="section">
+      <h2>Permissions</h2>
+      <div class="status-grid">
+        <div class="label">Camera:</div>
+        <div class="value" id="perm-camera">—</div>
+        
+        <div class="label">Location:</div>
+        <div class="value" id="perm-location">—</div>
+        
+        <div class="label">Motion:</div>
+        <div class="value" id="perm-motion">—</div>
+      </div>
+    </div>
+    
+    <!-- Sensors -->
+    <div class="section">
+      <h2>Sensors</h2>
+      <div class="status-grid">
+        <div class="label">Heading:</div>
+        <div class="value" id="sensor-heading">—</div>
+        
+        <div class="label">GPS:</div>
+        <div class="value" id="sensor-gps">—</div>
+        
+        <div class="label">Accuracy:</div>
+        <div class="value" id="sensor-accuracy">—</div>
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="section">
+      <h2>Actions</h2>
+      <button class="btn" onclick="requestAllPermissions()">Request All Permissions</button>
+      <button class="btn btn-secondary" onclick="enterDemoMode()">Enter Demo Mode</button>
+      <button class="btn btn-secondary" onclick="retryPermissions()">Retry Permissions</button>
+      <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <!-- State History -->
+    <div class="section">
+      <h2>State History (Last 10)</h2>
+      <div id="state-history"></div>
+    </div>
+    
+    <!-- Console Logs -->
+    <div class="section">
+      <h2>Console Logs (Last 50)</h2>
+      <div class="log" id="console-log"></div>
+    </div>
+    
+    <!-- Links -->
+    <div class="section">
+      <h2>Quick Links</h2>
+      <a href="/" style="color: #60a5fa; text-decoration: none; display: block; margin-bottom: 8px;">← Back to App</a>
+      <a href="/index-unified.html" style="color: #60a5fa; text-decoration: none; display: block; margin-bottom: 8px;">Unified Version</a>
+      <a href="/index.html" style="color: #60a5fa; text-decoration: none; display: block;">Old Version</a>
+    </div>
+  </div>
+  
+  <script>
+    // Intercept console logs
+    const logs = [];
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    console.log = function(...args) {
+      logs.push({ type: 'log', message: args.join(' '), timestamp: Date.now() });
+      updateLogDisplay();
+      originalLog.apply(console, args);
+    };
+    
+    console.error = function(...args) {
+      logs.push({ type: 'error', message: args.join(' '), timestamp: Date.now() });
+      updateLogDisplay();
+      originalError.apply(console, args);
+    };
+    
+    console.warn = function(...args) {
+      logs.push({ type: 'warn', message: args.join(' '), timestamp: Date.now() });
+      updateLogDisplay();
+      originalWarn.apply(console, args);
+    };
+    
+    // Update display every second
+    setInterval(updateDisplay, 1000);
+    
+    function updateDisplay() {
+      // Current state
+      if (window.APP_STATE) {
+        document.getElementById('current-state').textContent = window.APP_STATE;
+      }
+      
+      // Current screen
+      const startScreen = window.parent.document.getElementById('start-screen');
+      const arScreen = window.parent.document.getElementById('ar-screen');
+      if (startScreen && arScreen) {
+        const startVisible = startScreen.style.display !== 'none';
+        const arVisible = arScreen.style.display !== 'none';
+        document.getElementById('current-screen').textContent = 
+          startVisible ? 'Start Screen' : arVisible ? 'AR Screen' : 'Unknown';
+      }
+      
+      // Permissions
+      if (window.Permissions && window.Permissions.results) {
+        const results = window.Permissions.results;
+        document.getElementById('perm-camera').textContent = 
+          results.camera.ok ? '✅ Granted' : results.camera.error ? `❌ ${results.camera.error}` : '—';
+        document.getElementById('perm-location').textContent = 
+          results.location.ok ? '✅ Granted' : results.location.error ? `❌ ${results.location.error}` : '—';
+        document.getElementById('perm-motion').textContent = 
+          results.motion.ok ? '✅ Granted' : results.motion.error ? `❌ ${results.motion.error}` : '—';
+      }
+      
+      // Sensors
+      if (window.APP && window.APP.sensors) {
+        const sensors = window.APP.sensors;
+        document.getElementById('sensor-heading').textContent = 
+          sensors.heading !== null ? `${Math.round(sensors.heading)}°` : '—';
+        document.getElementById('sensor-gps').textContent = 
+          sensors.position ? `${sensors.position.lat.toFixed(5)}, ${sensors.position.lng.toFixed(5)}` : '—';
+        document.getElementById('sensor-accuracy').textContent = 
+          sensors.accuracy !== null ? `±${Math.round(sensors.accuracy)}m` : '—';
+      }
+      
+      // State history
+      if (window.STATE_HISTORY) {
+        const history = window.STATE_HISTORY.slice(-10).reverse();
+        const historyHTML = history.map(item => {
+          const time = new Date(item.timestamp).toLocaleTimeString();
+          return `
+            <div class="history-item">
+              <span class="state-badge state-${item.from}">${item.from}</span>
+              →
+              <span class="state-badge state-${item.to}">${item.to}</span>
+              <span class="timestamp">${time}</span>
+              ${item.meta.msg ? `<div style="margin-top: 4px; color: #9ca3af; font-size: 12px;">${item.meta.msg}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+        document.getElementById('state-history').innerHTML = historyHTML || '<div style="color: #6b7280;">No history yet</div>';
+      }
+    }
+    
+    function updateLogDisplay() {
+      const logEl = document.getElementById('console-log');
+      const recentLogs = logs.slice(-50).reverse();
+      
+      const logHTML = recentLogs.map(log => {
+        let className = '';
+        if (log.message.includes('[FSM]')) className = 'log-fsm';
+        else if (log.message.includes('[Permissions]')) className = 'log-perm';
+        else if (log.message.includes('[UI]')) className = 'log-ui';
+        else if (log.message.includes('[App]')) className = 'log-app';
+        else if (log.type === 'error') className = 'log-error';
+        
+        return `<div class="log-line ${className}">${log.message}</div>`;
+      }).join('');
+      
+      logEl.innerHTML = logHTML || '<div style="color: #6b7280;">No logs yet</div>';
+    }
+    
+    function requestAllPermissions() {
+      if (window.Permissions) {
+        window.Permissions.requestAll().then(results => {
+          console.log('[Debug] Permission results:', results);
+        });
+      } else {
+        alert('Permissions manager not available. Load the main app first.');
+      }
+    }
+    
+    function enterDemoMode() {
+      if (window.APP) {
+        window.APP.initDemoMode();
+      } else {
+        alert('App not initialized. Load the main app first.');
+      }
+    }
+    
+    function retryPermissions() {
+      if (window.setState && window.AppState) {
+        window.setState(window.AppState.PERMISSION_GATE);
+      } else {
+        alert('FSM not available. Load the main app first.');
+      }
+    }
+    
+    function clearLogs() {
+      logs.length = 0;
+      updateLogDisplay();
+    }
+    
+    // Initial update
+    updateDisplay();
+    updateLogDisplay();
+  </script>
+</body>
+</html>
+
