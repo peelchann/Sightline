@@ -320,3 +320,94 @@ Canvas Size: 0×0   ← ⚠️ PROBLEM #4: Canvas also 0×0
 4. Wait for `loadedmetadata` event
 5. Verify video dimensions > 0
 
+**Status**: ✅ IMPLEMENTED but revealed deeper issue
+
+---
+
+## 🎯 FIX #2: UNIFIED PERMISSION FLOW (Root Cause of "Stuck UI")
+
+### **New Root Cause Identified:**
+
+The camera black screen was **symptom**, not the root cause. The real issue:
+
+**FRAGMENTED PERMISSION FLOW** → Permissions requested at different times → Sensors never initialize → UI never transitions → **Stuck on single screen**
+
+### **Problems with Original Flow:**
+
+1. ❌ **Permissions split across multiple places**
+   - Camera requested in one place
+   - Location requested elsewhere
+   - Motion requested (maybe) after app starts
+   
+2. ❌ **No state machine**
+   - No clear "current state" tracking
+   - No transition logic
+   - UI routing is ad-hoc
+   
+3. ❌ **iOS Motion Permission Timing**
+   - Must be called from user gesture
+   - Was being called too late (after app init)
+   - Sensors stay null, UI never updates
+
+4. ❌ **No recovery path**
+   - If any permission fails, app is stuck
+   - No way to retry
+   - No demo mode fallback
+
+### **FIX #2 Implementation:**
+
+**Created:**
+- `app-unified.js` - Complete rewrite with FSM
+- `index-unified.html` - New start gate UI
+
+**Key Features:**
+1. ✅ **Finite State Machine (FSM)**
+   - `INIT → PERMISSION_GATE → REQUESTING_PERMS → READY → RUNNING`
+   - Clear state transitions
+   - No ambiguous states
+
+2. ✅ **Unified Permission Manager**
+   - Single `Permissions.requestAll()` call
+   - Requests Camera + Location + Motion in sequence
+   - Real-time progress checklist
+   - Returns detailed results
+
+3. ✅ **Screen Router**
+   - `UI.route(state)` controls visibility
+   - Start screen: INIT, PERMISSION_GATE, REQUESTING_PERMS, ERROR
+   - AR screen: READY, RUNNING
+   - **Impossible to get stuck on one screen**
+
+4. ✅ **iOS Motion Permission Fix**
+   - Called from button click (user gesture)
+   - Proper timing in permission sequence
+   - Fallback for non-iOS devices
+
+5. ✅ **Demo Mode**
+   - Works without any sensors
+   - Fixed position (West Kowloon Freespace)
+   - Fixed heading (120° facing harbour)
+   - Allows testing without permissions
+
+6. ✅ **Error Recovery**
+   - Clear error messages
+   - Retry button
+   - Demo mode as fallback
+
+### **Testing FIX #2:**
+
+**URL**: Will deploy `index-unified.html` as new entry point
+
+**Expected Flow:**
+1. User sees Start screen with permission checklist
+2. User taps "Enable Camera, Location & Motion"
+3. Checklist items tick ✅ as each permission is granted
+4. State banner shows progress: `REQUESTING_PERMS → READY → RUNNING`
+5. AR screen automatically appears
+6. Camera feed visible, IMU/GPS data updating
+
+**If Permissions Denied:**
+1. Error state with clear message
+2. Retry button appears
+3. Demo Mode button available as fallback
+
