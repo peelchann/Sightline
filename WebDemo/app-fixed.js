@@ -750,6 +750,60 @@ class SightlineApp {
         accEl.textContent = '—';
       }
     }
+
+    // DIAGNOSTIC: Update camera debug info
+    this.updateCameraDebug();
+  }
+
+  /**
+   * Update camera diagnostic info
+   */
+  updateCameraDebug() {
+    const debugEl = document.getElementById('camera-debug');
+    if (!debugEl) return;
+
+    const video = document.querySelector('video');
+    const scene = document.querySelector('a-scene');
+    const canvas = document.querySelector('canvas');
+
+    let debugInfo = [];
+
+    // Video element check
+    if (video) {
+      debugInfo.push(`✅ Video exists`);
+      debugInfo.push(`Size: ${video.videoWidth}×${video.videoHeight}`);
+      debugInfo.push(`Ready: ${video.readyState}/4`);
+      debugInfo.push(`SrcObj: ${video.srcObject ? 'Yes' : 'No'}`);
+      debugInfo.push(`Paused: ${video.paused ? 'Yes' : 'No'}`);
+      
+      const style = window.getComputedStyle(video);
+      debugInfo.push(`Display: ${style.display}`);
+      debugInfo.push(`Visibility: ${style.visibility}`);
+      debugInfo.push(`Opacity: ${style.opacity}`);
+      debugInfo.push(`Z-index: ${style.zIndex}`);
+    } else {
+      debugInfo.push(`❌ Video not found`);
+    }
+
+    // Scene check
+    if (scene) {
+      debugInfo.push(`✅ Scene exists`);
+      debugInfo.push(`Loaded: ${scene.hasLoaded ? 'Yes' : 'No'}`);
+      const arSystem = scene.systems['arjs'];
+      debugInfo.push(`AR.js: ${arSystem ? 'Yes' : 'No'}`);
+    } else {
+      debugInfo.push(`❌ Scene not found`);
+    }
+
+    // Canvas check
+    if (canvas) {
+      debugInfo.push(`✅ Canvas exists`);
+      debugInfo.push(`Canvas size: ${canvas.width}×${canvas.height}`);
+    } else {
+      debugInfo.push(`❌ Canvas not found`);
+    }
+
+    debugEl.innerHTML = debugInfo.join('<br>');
   }
 
   /**
