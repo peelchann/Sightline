@@ -61,6 +61,9 @@ const Permissions = {
    * Request all permissions SYNCHRONOUSLY (no awaits between initiations)
    * CRITICAL: All permission requests must start in the SAME synchronous call stack
    * iOS Chrome loses gesture context after ANY await, so we start all requests immediately
+   * 
+   * iOS ISSUE: getUserMedia() shows prompt and PAUSES JS execution, preventing other requests
+   * SOLUTION: Use setTimeout(0) to queue all requests in the same event loop tick
    */
   async requestAll() {
     console.log('[Permissions] Starting SYNCHRONOUS permission requests (no awaits between initiations)...');
@@ -73,104 +76,115 @@ const Permissions = {
     
     LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
-    // CRITICAL: Start ALL permission requests SYNCHRONOUSLY (no await between them)
-    // This is the ONLY way to preserve gesture context on iOS Chrome
+    // CRITICAL iOS FIX: Use setTimeout(0) to queue all requests in same event loop tick
+    // This ensures all three start before getUserMedia() pauses execution
+    return new Promise((resolve) => {
+      let cameraPromise, locationPromise, motionPromise;
+      
+      // Queue all three to start in the SAME event loop tick
+      setTimeout(() => {
+        LogPanel.push('[SYNC] 📷 Initiating camera request...');
+        console.log('[Permissions] [SYNC] Initiating camera...');
+        cameraPromise = this.requestCamera().catch(error => {
+          console.error('[Permissions] Camera promise rejected:', error);
+          return { ok: false, stream: null, error: error.message || 'camera_exception' };
+        });
+      }, 0);
+      
+      setTimeout(() => {
+        LogPanel.push('[SYNC] 📍 Initiating location request...');
+        console.log('[Permissions] [SYNC] Initiating location...');
+        locationPromise = this.requestLocation().catch(error => {
+          console.error('[Permissions] Location promise rejected:', error);
+          return { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
+        });
+      }, 0);
+      
+      setTimeout(() => {
+        LogPanel.push('[SYNC] 🧭 Initiating motion request...');
+        console.log('[Permissions] [SYNC] Initiating motion...');
+        motionPromise = this.requestMotion().catch(error => {
+          console.error('[Permissions] Motion promise rejected:', error);
+          return { ok: false, error: error.message || 'motion_exception' };
+        });
+      }, 0);
+      
+      // Wait a tiny bit for all promises to be created
+      setTimeout(async () => {
+        LogPanel.push('✅ All 3 requests initiated synchronously!');
+        LogPanel.push('⏳ Now awaiting results...');
     
-    LogPanel.push('[SYNC] 📷 Initiating camera request...');
-    console.log('[Permissions] [SYNC] Initiating camera...');
-    const cameraPromise = this.requestCamera().catch(error => {
-      console.error('[Permissions] Camera promise rejected:', error);
-      return { ok: false, stream: null, error: error.message || 'camera_exception' };
+        // NOW we can await (all requests are already started)
+        LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
+        // Wait for camera
+        try {
+          LogPanel.push('[1/3] ⏳ Waiting for camera...');
+          this.results.camera = await cameraPromise;
+          UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
+          if (this.results.camera.ok) {
+            LogPanel.push('✅ [1/3] Camera GRANTED');
+            console.log('[Permissions] ✅ [1/3] Camera granted');
+          } else {
+            LogPanel.push(`❌ [1/3] Camera FAILED: ${this.results.camera.error}`);
+            console.error('[Permissions] ❌ [1/3] Camera failed:', this.results.camera.error);
+          }
+        } catch (error) {
+          this.results.camera = { ok: false, stream: null, error: error.message || 'camera_exception' };
+          UI.tickPermit('camera', 'error');
+          LogPanel.push(`❌ [1/3] Camera EXCEPTION: ${error.message}`);
+          console.error('[Permissions] ❌ [1/3] Camera exception:', error);
+        }
+        
+        // Wait for location
+        try {
+          LogPanel.push('[2/3] ⏳ Waiting for location...');
+          this.results.location = await locationPromise;
+          UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
+          if (this.results.location.ok) {
+            LogPanel.push('✅ [2/3] Location GRANTED');
+            console.log('[Permissions] ✅ [2/3] Location granted');
+          } else {
+            LogPanel.push(`❌ [2/3] Location FAILED: ${this.results.location.error}`);
+            console.error('[Permissions] ❌ [2/3] Location failed:', this.results.location.error);
+          }
+        } catch (error) {
+          this.results.location = { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
+          UI.tickPermit('location', 'error');
+          LogPanel.push(`❌ [2/3] Location EXCEPTION: ${error.message}`);
+          console.error('[Permissions] ❌ [2/3] Location exception:', error);
+        }
+        
+        // Wait for motion
+        try {
+          LogPanel.push('[3/3] ⏳ Waiting for motion...');
+          this.results.motion = await motionPromise;
+          UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
+          if (this.results.motion.ok) {
+            LogPanel.push('✅ [3/3] Motion GRANTED');
+            console.log('[Permissions] ✅ [3/3] Motion granted');
+          } else {
+            LogPanel.push(`❌ [3/3] Motion FAILED: ${this.results.motion.error}`);
+            console.error('[Permissions] ❌ [3/3] Motion failed:', this.results.motion.error);
+          }
+        } catch (error) {
+          this.results.motion = { ok: false, error: error.message || 'motion_exception' };
+          UI.tickPermit('motion', 'error');
+          LogPanel.push(`❌ [3/3] Motion EXCEPTION: ${error.message}`);
+          console.error('[Permissions] ❌ [3/3] Motion exception:', error);
+        }
+        
+        LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
+        console.log('[Permissions] ✅ ALL REQUESTS COMPLETED:', this.results);
+        LogPanel.push(`📊 FINAL RESULTS:`);
+        LogPanel.push(`   Camera: ${this.results.camera.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.camera.error || ''}`);
+        LogPanel.push(`   Location: ${this.results.location.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.location.error || ''}`);
+        LogPanel.push(`   Motion: ${this.results.motion.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.motion.error || ''}`);
+        LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        resolve(this.results);
+      }, 10); // Small delay to ensure all setTimeout(0) callbacks have run
     });
-    
-    // NO AWAIT HERE - Start location immediately
-    LogPanel.push('[SYNC] 📍 Initiating location request...');
-    console.log('[Permissions] [SYNC] Initiating location...');
-    const locationPromise = this.requestLocation().catch(error => {
-      console.error('[Permissions] Location promise rejected:', error);
-      return { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
-    });
-    
-    // NO AWAIT HERE - Start motion immediately
-    LogPanel.push('[SYNC] 🧭 Initiating motion request...');
-    console.log('[Permissions] [SYNC] Initiating motion...');
-    const motionPromise = this.requestMotion().catch(error => {
-      console.error('[Permissions] Motion promise rejected:', error);
-      return { ok: false, error: error.message || 'motion_exception' };
-    });
-    
-    LogPanel.push('✅ All 3 requests initiated synchronously!');
-    LogPanel.push('⏳ Now awaiting results...');
-    
-    // NOW we can await (all requests are already started)
-    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
-    // Wait for camera
-    try {
-      LogPanel.push('[1/3] ⏳ Waiting for camera...');
-      this.results.camera = await cameraPromise;
-      UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
-      if (this.results.camera.ok) {
-        LogPanel.push('✅ [1/3] Camera GRANTED');
-        console.log('[Permissions] ✅ [1/3] Camera granted');
-      } else {
-        LogPanel.push(`❌ [1/3] Camera FAILED: ${this.results.camera.error}`);
-        console.error('[Permissions] ❌ [1/3] Camera failed:', this.results.camera.error);
-      }
-    } catch (error) {
-      this.results.camera = { ok: false, stream: null, error: error.message || 'camera_exception' };
-      UI.tickPermit('camera', 'error');
-      LogPanel.push(`❌ [1/3] Camera EXCEPTION: ${error.message}`);
-      console.error('[Permissions] ❌ [1/3] Camera exception:', error);
-    }
-    
-    // Wait for location
-    try {
-      LogPanel.push('[2/3] ⏳ Waiting for location...');
-      this.results.location = await locationPromise;
-      UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
-      if (this.results.location.ok) {
-        LogPanel.push('✅ [2/3] Location GRANTED');
-        console.log('[Permissions] ✅ [2/3] Location granted');
-      } else {
-        LogPanel.push(`❌ [2/3] Location FAILED: ${this.results.location.error}`);
-        console.error('[Permissions] ❌ [2/3] Location failed:', this.results.location.error);
-      }
-    } catch (error) {
-      this.results.location = { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
-      UI.tickPermit('location', 'error');
-      LogPanel.push(`❌ [2/3] Location EXCEPTION: ${error.message}`);
-      console.error('[Permissions] ❌ [2/3] Location exception:', error);
-    }
-    
-    // Wait for motion
-    try {
-      LogPanel.push('[3/3] ⏳ Waiting for motion...');
-      this.results.motion = await motionPromise;
-      UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
-      if (this.results.motion.ok) {
-        LogPanel.push('✅ [3/3] Motion GRANTED');
-        console.log('[Permissions] ✅ [3/3] Motion granted');
-      } else {
-        LogPanel.push(`❌ [3/3] Motion FAILED: ${this.results.motion.error}`);
-        console.error('[Permissions] ❌ [3/3] Motion failed:', this.results.motion.error);
-      }
-    } catch (error) {
-      this.results.motion = { ok: false, error: error.message || 'motion_exception' };
-      UI.tickPermit('motion', 'error');
-      LogPanel.push(`❌ [3/3] Motion EXCEPTION: ${error.message}`);
-      console.error('[Permissions] ❌ [3/3] Motion exception:', error);
-    }
-    
-    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
-    console.log('[Permissions] ✅ ALL REQUESTS COMPLETED:', this.results);
-    LogPanel.push(`📊 FINAL RESULTS:`);
-    LogPanel.push(`   Camera: ${this.results.camera.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.camera.error || ''}`);
-    LogPanel.push(`   Location: ${this.results.location.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.location.error || ''}`);
-    LogPanel.push(`   Motion: ${this.results.motion.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.motion.error || ''}`);
-    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    return this.results;
   },
   
   /**
