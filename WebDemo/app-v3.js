@@ -49,8 +49,15 @@ function log(msg) {
 // PERMISSION HANDLERS
 // ============================================================================
 
-// Camera Permission
-document.getElementById('btn-perm-camera').addEventListener('click', async (e) => {
+function setupPermissionHandlers() {
+  // Camera Permission
+  const btnCamera = document.getElementById('btn-perm-camera');
+  if (!btnCamera) {
+    log('ERROR: btn-perm-camera not found');
+    return;
+  }
+  
+  btnCamera.addEventListener('click', async (e) => {
   e.preventDefault();
   e.stopPropagation();
   
@@ -112,10 +119,16 @@ document.getElementById('btn-perm-camera').addEventListener('click', async (e) =
     btn.disabled = false;
     showIOSHelp();
   }
-});
-
-// Location Permission
-document.getElementById('btn-perm-geo').addEventListener('click', async (e) => {
+  });
+  
+  // Location Permission
+  const btnGeo = document.getElementById('btn-perm-geo');
+  if (!btnGeo) {
+    log('ERROR: btn-perm-geo not found');
+    return;
+  }
+  
+  btnGeo.addEventListener('click', async (e) => {
   e.preventDefault();
   e.stopPropagation();
   
@@ -181,10 +194,16 @@ document.getElementById('btn-perm-geo').addEventListener('click', async (e) => {
     },
     opts
   );
-});
-
-// Motion & Orientation Permission
-document.getElementById('btn-perm-imu').addEventListener('click', async (e) => {
+  });
+  
+  // Motion & Orientation Permission
+  const btnImu = document.getElementById('btn-perm-imu');
+  if (!btnImu) {
+    log('ERROR: btn-perm-imu not found');
+    return;
+  }
+  
+  btnImu.addEventListener('click', async (e) => {
   e.preventDefault();
   e.stopPropagation();
   
@@ -244,7 +263,10 @@ document.getElementById('btn-perm-imu').addEventListener('click', async (e) => {
     btn.disabled = false;
     showIOSHelp();
   }
-});
+  });
+  
+  log('permission-handlers: all handlers attached');
+}
 
 // ============================================================================
 // ORIENTATION HANDLER
@@ -306,7 +328,14 @@ function maybeEnableStartAR() {
   }
 }
 
-document.getElementById('btn-start-ar').addEventListener('click', async (e) => {
+function setupActionHandlers() {
+  const btnStartAR = document.getElementById('btn-start-ar');
+  if (!btnStartAR) {
+    log('ERROR: btn-start-ar not found');
+    return;
+  }
+  
+  btnStartAR.addEventListener('click', async (e) => {
   e.preventDefault();
   e.stopPropagation();
   
@@ -329,13 +358,16 @@ document.getElementById('btn-start-ar').addEventListener('click', async (e) => {
   await enterARScene();
   
   log('start-ar: AR scene ready');
-});
-
-// ============================================================================
-// DEMO MODE
-// ============================================================================
-
-document.getElementById('btn-start-demo').addEventListener('click', (e) => {
+  });
+  
+  // Demo Mode
+  const btnDemo = document.getElementById('btn-start-demo');
+  if (!btnDemo) {
+    log('ERROR: btn-start-demo not found');
+    return;
+  }
+  
+  btnDemo.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
   
@@ -361,7 +393,10 @@ document.getElementById('btn-start-demo').addEventListener('click', (e) => {
   
   initDemoRuntime(preset);
   log('demo: initialized with preset location');
-});
+  });
+  
+  log('action-handlers: all handlers attached');
+}
 
 function initDemoRuntime(preset) {
   // Set synthetic GPS
@@ -552,13 +587,18 @@ function showIOSHelp() {
   }
 }
 
-document.getElementById('ios-help-link').addEventListener('click', (e) => {
-  e.preventDefault();
-  const modal = document.getElementById('ios-help-modal');
-  if (modal) {
-    modal.style.display = 'flex';
+function setupIOSHelp() {
+  const helpLink = document.getElementById('ios-help-link');
+  if (helpLink) {
+    helpLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      const modal = document.getElementById('ios-help-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    });
   }
-});
+}
 
 // ============================================================================
 // INITIALIZATION
@@ -570,6 +610,11 @@ window.addEventListener('DOMContentLoaded', () => {
   log(`boot: ts=${Date.now()}`);
   
   setChip('INIT');
+  
+  // Setup all handlers
+  setupPermissionHandlers();
+  setupActionHandlers();
+  setupIOSHelp();
   
   // Check initial permission states
   maybeEnableStartAR();
