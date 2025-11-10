@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/index-unified.html"
+      "destination": "/index-v3.html"
     }
   ],
   "headers": [
