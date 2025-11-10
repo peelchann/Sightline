@@ -298,15 +298,15 @@
       </ul>
       
       <!-- Action Buttons -->
-      <button id="cta-enable" class="btn btn-primary">
+      <button id="cta-enable" class="btn btn-primary" onclick="window.handleEnableClick(event)">
         Enable Camera, Location & Motion
       </button>
       
-      <button id="cta-demo" class="btn btn-secondary">
+      <button id="cta-demo" class="btn btn-secondary" onclick="window.handleDemoClick(event)">
         Continue in Demo Mode (No Sensors)
       </button>
       
-      <button id="cta-retry" class="btn btn-secondary" style="display: none;">
+      <button id="cta-retry" class="btn btn-secondary" style="display: none;" onclick="window.handleRetryClick(event)">
         🔄 Retry Permissions
       </button>
       
