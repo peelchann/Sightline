@@ -899,7 +899,8 @@ const LogPanel = {
 // ============================================================================
 
 // Expose handlers globally for onclick attribute
-window.handleEnableClick = async function(e) {
+// These are the FULL implementations (inline script has stubs)
+window.handleEnableClickFull = async function(e) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
@@ -984,7 +985,7 @@ window.handleEnableClick = async function(e) {
   }
 }
 
-window.handleDemoClick = function(e) {
+window.handleDemoClickFull = function(e) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
@@ -1003,7 +1004,7 @@ window.handleDemoClick = function(e) {
   setState(AppState.RUNNING, { msg: 'Demo Mode (No Sensors)' });
 };
 
-window.handleRetryClick = function(e) {
+window.handleRetryClickFull = function(e) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
@@ -1016,17 +1017,22 @@ window.handleRetryClick = function(e) {
   UI.setCtaLoading(false);
 };
 
+// Also expose as the main handlers (inline script will call these)
+window.handleEnableClick = window.handleEnableClickFull;
+window.handleDemoClick = window.handleDemoClickFull;
+window.handleRetryClick = window.handleRetryClickFull;
+
 // Keep old function names for backward compatibility
 function onEnableClick(e) {
-  return window.handleEnableClick(e);
+  return window.handleEnableClickFull(e);
 }
 
 function onDemoClick(e) {
-  return window.handleDemoClick(e);
+  return window.handleDemoClickFull(e);
 }
 
 function onRetryClick(e) {
-  return window.handleRetryClick(e);
+  return window.handleRetryClickFull(e);
 }
 
 async function startApp() {
@@ -1071,23 +1077,16 @@ async function startApp() {
     ctaEnable.style.touchAction = 'manipulation';
     ctaEnable.style.zIndex = '1001'; // Ensure it's above other elements
     
-    // Remove any existing listeners first (prevent duplicates) by cloning
-    const newEnableBtn = ctaEnable.cloneNode(true);
-    ctaEnable.parentNode.replaceChild(newEnableBtn, ctaEnable);
-    const enableBtn = document.getElementById('cta-enable');
+    // DON'T clone - onclick attribute is already set in HTML
+    // Just add additional event listeners as backup
+    const enableBtn = ctaEnable;
     
-    if (!enableBtn) {
-      LogPanel.push('❌ Enable button lost after clone!');
-      console.error('[Init] Enable button not found after clone');
-      return;
-    }
-    
-    // Add both click and touchstart for iOS
+    // Add both click and touchstart for iOS (backup to onclick)
     enableBtn.addEventListener('click', onEnableClick, { passive: false, capture: false });
     enableBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      LogPanel.push('🔵 Enable button touchstart');
+      LogPanel.push('🔵 Enable button touchstart (backup)');
       onEnableClick(e);
     }, { passive: false, capture: false });
     
@@ -1122,23 +1121,15 @@ async function startApp() {
     ctaDemo.style.touchAction = 'manipulation';
     ctaDemo.style.zIndex = '1001';
     
-    // Remove any existing listeners first (prevent duplicates) by cloning
-    const newDemoBtn = ctaDemo.cloneNode(true);
-    ctaDemo.parentNode.replaceChild(newDemoBtn, ctaDemo);
-    const demoBtn = document.getElementById('cta-demo');
+    // DON'T clone - onclick attribute is already set in HTML
+    const demoBtn = ctaDemo;
     
-    if (!demoBtn) {
-      LogPanel.push('❌ Demo button lost after clone!');
-      console.error('[Init] Demo button not found after clone');
-      return;
-    }
-    
-    // Add both click and touchstart for iOS
+    // Add both click and touchstart for iOS (backup to onclick)
     demoBtn.addEventListener('click', onDemoClick, { passive: false, capture: false });
     demoBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      LogPanel.push('🔵 Demo button touchstart');
+      LogPanel.push('🔵 Demo button touchstart (backup)');
       onDemoClick(e);
     }, { passive: false, capture: false });
     
@@ -1159,23 +1150,15 @@ async function startApp() {
     ctaRetry.style.touchAction = 'manipulation';
     ctaRetry.style.zIndex = '1001';
     
-    // Remove any existing listeners first (prevent duplicates) by cloning
-    const newRetryBtn = ctaRetry.cloneNode(true);
-    ctaRetry.parentNode.replaceChild(newRetryBtn, ctaRetry);
-    const retryBtn = document.getElementById('cta-retry');
+    // DON'T clone - onclick attribute is already set in HTML
+    const retryBtn = ctaRetry;
     
-    if (!retryBtn) {
-      LogPanel.push('❌ Retry button lost after clone!');
-      console.error('[Init] Retry button not found after clone');
-      return;
-    }
-    
-    // Add both click and touchstart for iOS
+    // Add both click and touchstart for iOS (backup to onclick)
     retryBtn.addEventListener('click', onRetryClick, { passive: false, capture: false });
     retryBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      LogPanel.push('🔵 Retry button touchstart');
+      LogPanel.push('🔵 Retry button touchstart (backup)');
       onRetryClick(e);
     }, { passive: false, capture: false });
     
