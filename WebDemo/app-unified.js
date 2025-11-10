@@ -58,51 +58,86 @@ const Permissions = {
   },
   
   /**
-   * Request all permissions in PARALLEL (after user gesture)
+   * Request all permissions SEQUENTIALLY (preserves user gesture context for iOS)
+   * CRITICAL: Must be called directly from user gesture handler, no async delays
    */
   async requestAll() {
-    console.log('[Permissions] Starting unified permission request (parallel)...');
+    console.log('[Permissions] Starting unified permission request (sequential for iOS compatibility)...');
+    LogPanel.push('[Permissions] Starting requests...');
     
     // Mark all as requesting
     UI.tickPermit('camera', 'requesting');
     UI.tickPermit('location', 'requesting');
     UI.tickPermit('motion', 'requesting');
     
-    // Request all in parallel using Promise.allSettled
-    const [camResult, geoResult, motResult] = await Promise.allSettled([
-      this.requestCamera(),
-      this.requestLocation(),
-      this.requestMotion(),
-    ]);
+    // REQUEST SEQUENTIALLY (not parallel) to preserve user gesture context on iOS
+    // iOS requires permission requests to happen synchronously from gesture handler
     
-    // Extract results
-    this.results.camera = camResult.status === 'fulfilled' 
-      ? camResult.value 
-      : { ok: false, error: camResult.reason?.message || 'unknown' };
+    // 1. Camera (most critical, request first)
+    LogPanel.push('[Permissions] Requesting camera...');
+    try {
+      this.results.camera = await this.requestCamera();
+      UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
+      if (this.results.camera.ok) {
+        LogPanel.push('✅ Camera granted');
+      } else {
+        LogPanel.push(`❌ Camera failed: ${this.results.camera.error}`);
+      }
+    } catch (error) {
+      this.results.camera = { ok: false, stream: null, error: error.message || 'camera_exception' };
+      UI.tickPermit('camera', 'error');
+      LogPanel.push(`❌ Camera exception: ${error.message}`);
+    }
     
-    this.results.location = geoResult.status === 'fulfilled'
-      ? geoResult.value
-      : { ok: false, position: null, watchId: null, error: geoResult.reason?.message || 'unknown' };
+    // 2. Location
+    LogPanel.push('[Permissions] Requesting location...');
+    try {
+      this.results.location = await this.requestLocation();
+      UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
+      if (this.results.location.ok) {
+        LogPanel.push('✅ Location granted');
+      } else {
+        LogPanel.push(`❌ Location failed: ${this.results.location.error}`);
+      }
+    } catch (error) {
+      this.results.location = { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
+      UI.tickPermit('location', 'error');
+      LogPanel.push(`❌ Location exception: ${error.message}`);
+    }
     
-    this.results.motion = motResult.status === 'fulfilled'
-      ? motResult.value
-      : { ok: false, error: motResult.reason?.message || 'unknown' };
-    
-    // Update UI
-    UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
-    UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
-    UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
+    // 3. Motion (iOS-specific, must be called directly from gesture)
+    LogPanel.push('[Permissions] Requesting motion...');
+    try {
+      this.results.motion = await this.requestMotion();
+      UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
+      if (this.results.motion.ok) {
+        LogPanel.push('✅ Motion granted');
+      } else {
+        LogPanel.push(`❌ Motion failed: ${this.results.motion.error}`);
+      }
+    } catch (error) {
+      this.results.motion = { ok: false, error: error.message || 'motion_exception' };
+      UI.tickPermit('motion', 'error');
+      LogPanel.push(`❌ Motion exception: ${error.message}`);
+    }
     
     console.log('[Permissions] All requests completed:', this.results);
+    LogPanel.push(`[Permissions] Results: Camera=${this.results.camera.ok}, Location=${this.results.location.ok}, Motion=${this.results.motion.ok}`);
     return this.results;
   },
   
   /**
    * Request camera permission with iOS fallback constraints
+   * CRITICAL: Must be called directly from user gesture handler
    */
   async requestCamera() {
     try {
       console.log('[Permissions] Requesting camera...');
+      
+      // Check if mediaDevices is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('camera_unavailable: getUserMedia not supported');
+      }
       
       // Try multiple constraint sets (iOS fallback)
       const constraintsList = [
@@ -117,25 +152,32 @@ const Permissions = {
       
       for (const constraints of constraintsList) {
         try {
+          LogPanel.push(`[Camera] Trying constraints: ${JSON.stringify(constraints).substring(0, 50)}...`);
           stream = await navigator.mediaDevices.getUserMedia(constraints);
           console.log('[Permissions] ✅ Camera granted with constraints:', constraints);
+          LogPanel.push('✅ Camera stream obtained');
           break;
         } catch (error) {
           lastError = error;
+          LogPanel.push(`[Camera] Constraint failed: ${error.name}`);
           console.warn('[Permissions] Camera constraint failed, trying next...', error.name);
         }
       }
       
       if (!stream) {
-        throw new Error(`camera_failed:${lastError?.name || 'unknown'}`);
+        const errorMsg = `camera_failed:${lastError?.name || 'unknown'}`;
+        LogPanel.push(`❌ All camera constraints failed: ${errorMsg}`);
+        throw new Error(errorMsg);
       }
       
       // Store stream for later use
       window.CAMERA_STREAM = stream;
+      LogPanel.push(`✅ Camera stream stored (${stream.getVideoTracks().length} tracks)`);
       
       return { ok: true, stream, error: null };
     } catch (error) {
       console.error('[Permissions] ❌ Camera denied:', error);
+      LogPanel.push(`❌ Camera error: ${error.message}`);
       return { ok: false, stream: null, error: error.message || 'camera_failed' };
     }
   },
@@ -146,10 +188,14 @@ const Permissions = {
   async requestLocation() {
     try {
       console.log('[Permissions] Requesting location...');
+      LogPanel.push('[Location] Checking geolocation API...');
       
       if (!('geolocation' in navigator)) {
+        LogPanel.push('❌ Geolocation API not available');
         throw new Error('geo_unavailable');
       }
+      
+      LogPanel.push('[Location] Geolocation API available');
       
       // Check permission state (if available)
       let permState = 'prompt';
@@ -157,14 +203,21 @@ const Permissions = {
         const perm = await navigator.permissions?.query?.({ name: 'geolocation' });
         permState = perm?.state || 'prompt';
         console.log('[Permissions] Geolocation permission state:', permState);
+        LogPanel.push(`[Location] Permission state: ${permState}`);
       } catch (e) {
         // Permissions API not available, continue anyway
+        LogPanel.push('[Location] Permissions API not available, continuing...');
       }
+      
+      LogPanel.push('[Location] Requesting current position...');
       
       // First, get current position with longer timeout for iOS
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
-          resolve,
+          (pos) => {
+            LogPanel.push(`✅ Position received: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+            resolve(pos);
+          },
           (error) => {
             // Map error codes to messages
             let errorMsg = 'geo_error:';
@@ -174,6 +227,7 @@ const Permissions = {
               case 3: errorMsg += 'TIMEOUT'; break;
               default: errorMsg += error.code;
             }
+            LogPanel.push(`❌ Location error: ${errorMsg}`);
             reject(new Error(errorMsg));
           },
           {
@@ -186,8 +240,10 @@ const Permissions = {
       
       console.log('[Permissions] ✅ Location granted:', position.coords);
       console.log('[Permissions] Location accuracy:', position.coords.accuracy, 'm');
+      LogPanel.push(`✅ Location accuracy: ±${Math.round(position.coords.accuracy)}m`);
       
       // Start watching position
+      LogPanel.push('[Location] Starting position watch...');
       const watchId = navigator.geolocation.watchPosition(
         (pos) => {
           if (window.APP) {
@@ -196,6 +252,7 @@ const Permissions = {
         },
         (error) => {
           console.error('[Location] Watch error:', error);
+          LogPanel.push(`[Location] Watch error: ${error.message}`);
         },
         {
           enableHighAccuracy: true,
@@ -203,19 +260,23 @@ const Permissions = {
         }
       );
       
+      LogPanel.push(`✅ Location watch started (ID: ${watchId})`);
       return { ok: true, position, watchId, error: null };
     } catch (error) {
       console.error('[Permissions] ❌ Location denied:', error);
+      LogPanel.push(`❌ Location error: ${error.message}`);
       return { ok: false, position: null, watchId: null, error: error.message || 'geo_error' };
     }
   },
   
   /**
    * Request motion/orientation permission (iOS requires user gesture)
+   * CRITICAL: Must be called directly from user gesture handler, no async delays before this
    */
   async requestMotion() {
     try {
       console.log('[Permissions] Requesting motion/orientation...');
+      LogPanel.push('[Motion] Checking iOS permission API...');
       
       // Check if iOS permission API exists (DeviceOrientationEvent or DeviceMotionEvent)
       const needsIOSPermission = 
@@ -223,16 +284,21 @@ const Permissions = {
         (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function');
       
       if (needsIOSPermission) {
+        LogPanel.push('[Motion] iOS detected, requesting permission...');
         console.log('[Permissions] iOS detected, requesting motion permission...');
         
-        // Try DeviceOrientationEvent first, then DeviceMotionEvent
+        // CRITICAL: Request permissions synchronously, don't await anything before this
         let permission = null;
         
+        // Try DeviceOrientationEvent first
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
+            LogPanel.push('[Motion] Requesting DeviceOrientationEvent permission...');
             permission = await DeviceOrientationEvent.requestPermission();
             console.log('[Permissions] DeviceOrientationEvent permission:', permission);
+            LogPanel.push(`[Motion] DeviceOrientationEvent: ${permission}`);
           } catch (e) {
+            LogPanel.push(`[Motion] DeviceOrientationEvent error: ${e.message}`);
             console.warn('[Permissions] DeviceOrientationEvent.requestPermission failed:', e);
           }
         }
@@ -240,8 +306,10 @@ const Permissions = {
         // Also request DeviceMotionEvent if available
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
           try {
+            LogPanel.push('[Motion] Requesting DeviceMotionEvent permission...');
             const motionPerm = await DeviceMotionEvent.requestPermission();
             console.log('[Permissions] DeviceMotionEvent permission:', motionPerm);
+            LogPanel.push(`[Motion] DeviceMotionEvent: ${motionPerm}`);
             // Use the more restrictive permission
             if (permission !== 'granted' && motionPerm === 'granted') {
               permission = motionPerm;
@@ -249,26 +317,31 @@ const Permissions = {
               permission = motionPerm;
             }
           } catch (e) {
+            LogPanel.push(`[Motion] DeviceMotionEvent error: ${e.message}`);
             console.warn('[Permissions] DeviceMotionEvent.requestPermission failed:', e);
           }
         }
         
         if (permission === 'granted') {
           console.log('[Permissions] ✅ iOS motion granted');
+          LogPanel.push('✅ Motion permission granted');
           this.attachMotionListeners();
           return { ok: true, error: null };
         } else {
           console.warn('[Permissions] ⚠️ iOS motion denied:', permission);
-          return { ok: false, error: 'motion_denied' };
+          LogPanel.push(`⚠️ Motion permission denied: ${permission}`);
+          return { ok: false, error: `motion_denied:${permission || 'unknown'}` };
         }
       } else {
         // Non-iOS: attach listeners and verify events arrive
+        LogPanel.push('[Motion] Non-iOS, verifying events...');
         console.log('[Permissions] Non-iOS, verifying motion events...');
         return new Promise((resolve) => {
           let gotEvent = false;
           const timeout = setTimeout(() => {
             if (!gotEvent) {
               console.warn('[Permissions] ⚠️ No motion events received');
+              LogPanel.push('⚠️ No motion events received (timeout)');
               resolve({ ok: false, error: 'motion_unavailable' });
             }
           }, 1500);
@@ -280,6 +353,7 @@ const Permissions = {
             window.removeEventListener('deviceorientationabsolute', onEvent);
             this.attachMotionListeners();
             console.log('[Permissions] ✅ Motion events confirmed');
+            LogPanel.push('✅ Motion events confirmed');
             resolve({ ok: true, error: null });
           };
           
@@ -289,6 +363,7 @@ const Permissions = {
       }
     } catch (error) {
       console.error('[Permissions] ❌ Motion error:', error);
+      LogPanel.push(`❌ Motion error: ${error.message}`);
       return { ok: false, error: error.message || 'motion_error' };
     }
   },
@@ -771,10 +846,16 @@ async function onEnableClick(e) {
   e.preventDefault();
   e.stopPropagation();
   
-  LogPanel.push('Enable button clicked');
+  LogPanel.push('🔵 Enable button clicked');
   console.log('[Init] User clicked enable permissions');
   
+  // CRITICAL: Disable button immediately to prevent double-clicks
   const btn = e.currentTarget;
+  if (btn.disabled) {
+    LogPanel.push('⚠️ Button already disabled, ignoring click');
+    return;
+  }
+  btn.disabled = true;
   
   // Immediate visual feedback
   UI.setCtaLoading(true);
@@ -782,23 +863,35 @@ async function onEnableClick(e) {
   UI.hideError();
   
   try {
-    LogPanel.push('Requesting all permissions...');
+    LogPanel.push('📋 Requesting all permissions (sequential)...');
+    
+    // CRITICAL: Request permissions NOW, directly from gesture handler
+    // Don't await anything before this - iOS requires gesture context
     const results = await Permissions.requestAll();
+    
+    LogPanel.push(`📊 Permission results received`);
     
     // Check if all required permissions granted
     const allOk = results.camera.ok && results.location.ok && results.motion.ok;
     
     if (!allOk) {
       const explanation = Permissions.explain(results);
-      LogPanel.push(`❌ Permissions failed: ${explanation}`);
+      LogPanel.push(`❌ Permissions incomplete: ${explanation}`);
       console.error('[Init] ❌ Not all permissions granted:', explanation);
       setState(AppState.ERROR, { msg: explanation });
       UI.showError(explanation);
       UI.setCtaLoading(false);
+      btn.disabled = false; // Re-enable for retry
+      
+      // Show retry button
+      const retryBtn = document.getElementById('cta-retry');
+      if (retryBtn) {
+        retryBtn.style.display = 'block';
+      }
       return;
     }
     
-    LogPanel.push('✅ All permissions granted');
+    LogPanel.push('✅ All permissions granted!');
     console.log('[Init] ✅ All permissions granted');
     setState(AppState.READY, { msg: 'Initializing AR...' });
     
@@ -807,15 +900,22 @@ async function onEnableClick(e) {
     window.APP = app;
     await app.init(results);
     
-    LogPanel.push('✅ AR initialized');
+    LogPanel.push('✅ AR initialized successfully');
     setState(AppState.RUNNING, { msg: 'Live AR Mode' });
     UI.setCtaLoading(false);
   } catch (error) {
-    LogPanel.push(`❌ Error: ${error.message}`);
+    LogPanel.push(`❌ Fatal error: ${error.message}`);
     console.error('[Init] ❌ Error during permission request:', error);
     setState(AppState.ERROR, { msg: error.message || 'Permission error' });
     UI.showError(error.message || 'Permission error');
     UI.setCtaLoading(false);
+    btn.disabled = false; // Re-enable for retry
+    
+    // Show retry button
+    const retryBtn = document.getElementById('cta-retry');
+    if (retryBtn) {
+      retryBtn.style.display = 'block';
+    }
   }
 }
 
@@ -887,23 +987,43 @@ async function startApp() {
     ctaEnable.style.userSelect = 'none';
     ctaEnable.style.webkitUserSelect = 'none';
     ctaEnable.style.touchAction = 'manipulation';
+    ctaEnable.style.zIndex = '1001'; // Ensure it's above other elements
+    
+    // Remove any existing listeners first (prevent duplicates) by cloning
+    const newEnableBtn = ctaEnable.cloneNode(true);
+    ctaEnable.parentNode.replaceChild(newEnableBtn, ctaEnable);
+    const enableBtn = document.getElementById('cta-enable');
+    
+    if (!enableBtn) {
+      LogPanel.push('❌ Enable button lost after clone!');
+      console.error('[Init] Enable button not found after clone');
+      return;
+    }
     
     // Add both click and touchstart for iOS
-    ctaEnable.addEventListener('click', onEnableClick, { passive: false });
-    ctaEnable.addEventListener('touchstart', (e) => {
+    enableBtn.addEventListener('click', onEnableClick, { passive: false, capture: false });
+    enableBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      LogPanel.push('Enable button touchstart');
+      e.stopPropagation();
+      LogPanel.push('🔵 Enable button touchstart');
       onEnableClick(e);
-    }, { passive: false });
+    }, { passive: false, capture: false });
+    
+    // Also add mousedown as fallback
+    enableBtn.addEventListener('mousedown', (e) => {
+      LogPanel.push('🔵 Enable button mousedown');
+    }, { passive: true });
     
     // Visual confirmation - pulse highlight
-    ctaEnable.style.transition = 'all 0.3s';
+    enableBtn.style.transition = 'all 0.3s';
     setTimeout(() => {
-      ctaEnable.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.5)';
+      enableBtn.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.5)';
       setTimeout(() => {
-        ctaEnable.style.boxShadow = '';
+        enableBtn.style.boxShadow = '';
       }, 500);
     }, 100);
+    
+    LogPanel.push('✅ Enable button listeners attached');
   } else {
     LogPanel.push('❌ Enable button NOT found!');
     console.error('[Init] ❌ cta-enable button not found');
@@ -918,14 +1038,29 @@ async function startApp() {
     ctaDemo.style.userSelect = 'none';
     ctaDemo.style.webkitUserSelect = 'none';
     ctaDemo.style.touchAction = 'manipulation';
+    ctaDemo.style.zIndex = '1001';
+    
+    // Remove any existing listeners first (prevent duplicates) by cloning
+    const newDemoBtn = ctaDemo.cloneNode(true);
+    ctaDemo.parentNode.replaceChild(newDemoBtn, ctaDemo);
+    const demoBtn = document.getElementById('cta-demo');
+    
+    if (!demoBtn) {
+      LogPanel.push('❌ Demo button lost after clone!');
+      console.error('[Init] Demo button not found after clone');
+      return;
+    }
     
     // Add both click and touchstart for iOS
-    ctaDemo.addEventListener('click', onDemoClick, { passive: false });
-    ctaDemo.addEventListener('touchstart', (e) => {
+    demoBtn.addEventListener('click', onDemoClick, { passive: false, capture: false });
+    demoBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      LogPanel.push('Demo button touchstart');
+      e.stopPropagation();
+      LogPanel.push('🔵 Demo button touchstart');
       onDemoClick(e);
-    }, { passive: false });
+    }, { passive: false, capture: false });
+    
+    LogPanel.push('✅ Demo button listeners attached');
   } else {
     LogPanel.push('❌ Demo button NOT found!');
     console.error('[Init] ❌ cta-demo button not found');
@@ -940,14 +1075,29 @@ async function startApp() {
     ctaRetry.style.userSelect = 'none';
     ctaRetry.style.webkitUserSelect = 'none';
     ctaRetry.style.touchAction = 'manipulation';
+    ctaRetry.style.zIndex = '1001';
+    
+    // Remove any existing listeners first (prevent duplicates) by cloning
+    const newRetryBtn = ctaRetry.cloneNode(true);
+    ctaRetry.parentNode.replaceChild(newRetryBtn, ctaRetry);
+    const retryBtn = document.getElementById('cta-retry');
+    
+    if (!retryBtn) {
+      LogPanel.push('❌ Retry button lost after clone!');
+      console.error('[Init] Retry button not found after clone');
+      return;
+    }
     
     // Add both click and touchstart for iOS
-    ctaRetry.addEventListener('click', onRetryClick, { passive: false });
-    ctaRetry.addEventListener('touchstart', (e) => {
+    retryBtn.addEventListener('click', onRetryClick, { passive: false, capture: false });
+    retryBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      LogPanel.push('Retry button touchstart');
+      e.stopPropagation();
+      LogPanel.push('🔵 Retry button touchstart');
       onRetryClick(e);
-    }, { passive: false });
+    }, { passive: false, capture: false });
+    
+    LogPanel.push('✅ Retry button listeners attached');
   }
   
   // Debug: Log button positions and styles
