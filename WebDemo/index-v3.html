@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sightline WebAR - Individual Permissions</title>
+  <meta name="description" content="Discover Hong Kong landmarks through augmented reality">
+  
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  
+  <link rel="stylesheet" href="styles-v3.css">
+</head>
+<body>
+
+  <!-- State Chip (Always Visible) -->
+  <div id="state-chip" class="state-chip">INIT</div>
+
+  <!-- Debug Log Panel (Always Visible) -->
+  <div id="dev-log" class="dev-log"></div>
+
+  <!-- START SCREEN -->
+  <div id="start-screen">
+    <div class="start-card">
+      <h1>🎯 Sightline WebAR</h1>
+      <p class="subtitle">Enable permissions individually, then start AR or try Demo Mode.</p>
+      
+      <!-- Permission Buttons -->
+      <div class="permission-section">
+        <div class="permission-row">
+          <div class="permission-info">
+            <span class="permission-icon">📷</span>
+            <div>
+              <div class="permission-label">Camera</div>
+              <div class="permission-desc">To see the real world</div>
+            </div>
+          </div>
+          <div class="permission-controls">
+            <span id="stat-camera" class="status-pill">🔴</span>
+            <button id="btn-perm-camera" class="btn-perm">Enable Camera</button>
+          </div>
+        </div>
+
+        <div class="permission-row">
+          <div class="permission-info">
+            <span class="permission-icon">📍</span>
+            <div>
+              <div class="permission-label">Location (GPS)</div>
+              <div class="permission-desc">To find nearby landmarks</div>
+            </div>
+          </div>
+          <div class="permission-controls">
+            <span id="stat-geo" class="status-pill">🔴</span>
+            <button id="btn-perm-geo" class="btn-perm">Enable Location</button>
+          </div>
+        </div>
+
+        <div class="permission-row">
+          <div class="permission-info">
+            <span class="permission-icon">🧭</span>
+            <div>
+              <div class="permission-label">Motion & Orientation</div>
+              <div class="permission-desc">To track where you're looking</div>
+            </div>
+          </div>
+          <div class="permission-controls">
+            <span id="stat-imu" class="status-pill">🔴</span>
+            <button id="btn-perm-imu" class="btn-perm">Enable Motion</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-section">
+        <button id="btn-start-ar" class="btn btn-primary" disabled>
+          🚀 Start AR
+        </button>
+        <button id="btn-start-demo" class="btn btn-secondary">
+          🎮 Start Demo Mode (No Sensors)
+        </button>
+      </div>
+
+      <!-- iOS Help Link (shown when permission denied) -->
+      <div id="ios-help" class="ios-help" style="display: none;">
+        <a href="#" id="ios-help-link">📱 How to enable permissions on iOS</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Help Modal -->
+  <div id="ios-help-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>📱 Enable Permissions on iOS</h2>
+      <button class="modal-close" onclick="document.getElementById('ios-help-modal').style.display='none'">×</button>
+      <div class="modal-body">
+        <h3>Motion & Orientation:</h3>
+        <p>Settings → Safari → Motion & Orientation Access → ON</p>
+        
+        <h3>Location:</h3>
+        <p>Settings → Privacy & Security → Location Services → Safari Websites → While Using the App (+ Precise)</p>
+        
+        <h3>Camera:</h3>
+        <p>In Safari: Tap (aA) → Website Settings → Camera → Allow</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AR SCREEN -->
+  <div id="ar-screen" style="display: none;">
+    <!-- Video Element for Camera -->
+    <video id="camera" playsinline muted autoplay style="display: none;"></video>
+    
+    <!-- Mode Badge -->
+    <div id="mode-badge" class="mode-badge live">LIVE AR</div>
+    
+    <!-- IMU HUD -->
+    <div id="imu-hud">
+      <div><strong>Heading:</strong> <span id="heading-value">—</span></div>
+      <div><strong>GPS:</strong> <span id="gps-value">—</span></div>
+      <div><strong>Accuracy:</strong> <span id="accuracy-value">—</span></div>
+    </div>
+    
+    <!-- A-Frame AR Scene -->
+    <a-scene
+      id="ar-scene"
+      embedded
+      arjs="
+        sourceType: webcam;
+        videoTexture: true;
+        debugUIEnabled: false;
+        sourceWidth: 1280;
+        sourceHeight: 960;
+        displayWidth: 1280;
+        displayHeight: 960;
+      "
+      vr-mode-ui="enabled: false"
+      loading-screen="enabled: false"
+      renderer="logarithmicDepthBuffer: true; precision: medium;"
+    >
+      <!-- Camera -->
+      <a-camera gps-camera rotation-reader></a-camera>
+      
+      <!-- POIs will be added dynamically by app.js -->
+    </a-scene>
+  </div>
+
+  <!-- App Script -->
+  <script src="app-v3.js"></script>
+</body>
+</html>
+

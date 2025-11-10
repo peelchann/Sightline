@@ -1,0 +1,584 @@
+/**
+ * Sightline WebAR - V3 Individual Permission Flow
+ * 
+ * Each permission is requested independently via separate buttons.
+ * This is more reliable on iOS Chrome.
+ */
+
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
+
+const state = {
+  camera: { granted: false, stream: null },
+  geo: { granted: false, watchId: null, last: null },
+  imu: { granted: false, active: false, headingDeg: null },
+  mode: 'INIT' // INIT | START | AR | DEMO | ERROR
+};
+
+// ============================================================================
+// UI HELPERS
+// ============================================================================
+
+function setChip(txt) {
+  const chip = document.getElementById('state-chip');
+  if (chip) {
+    chip.textContent = txt;
+    state.mode = txt;
+  }
+}
+
+function setStat(id, v) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = v; // '🔴' | '🟡' | '🟢'
+  }
+}
+
+function log(msg) {
+  const p = document.getElementById('dev-log');
+  if (p) {
+    const timestamp = new Date().toLocaleTimeString();
+    p.textContent += `[${timestamp}] ${msg}\n`;
+    p.scrollTop = p.scrollHeight;
+  }
+  console.log(`[Sightline] ${msg}`);
+}
+
+// ============================================================================
+// PERMISSION HANDLERS
+// ============================================================================
+
+// Camera Permission
+document.getElementById('btn-perm-camera').addEventListener('click', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const btn = e.currentTarget;
+  if (btn.disabled || btn.classList.contains('loading')) return;
+  
+  setStat('stat-camera', '🟡');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  log('camera: requesting');
+  
+  try {
+    // Try multiple constraint sets (iOS fallback)
+    const candidates = [
+      { video: { facingMode: { exact: 'environment' } }, audio: false },
+      { video: { facingMode: 'environment' }, audio: false },
+      { video: true, audio: false }
+    ];
+    
+    let stream = null;
+    for (const c of candidates) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(c);
+        log(`camera: granted with constraints ${JSON.stringify(c).substring(0, 50)}`);
+        break;
+      } catch (err) {
+        log(`camera: constraint failed: ${err.name}`);
+      }
+    }
+    
+    if (!stream) {
+      setStat('stat-camera', '🔴');
+      log('camera: getUserMedia failed - all constraints rejected');
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      showIOSHelp();
+      return;
+    }
+    
+    // Attach to video element
+    const video = document.getElementById('camera');
+    if (video) {
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      log('camera: video playing');
+    }
+    
+    state.camera = { granted: true, stream };
+    setStat('stat-camera', '🟢');
+    log('camera: granted & playing');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    maybeEnableStartAR();
+    
+  } catch (err) {
+    setStat('stat-camera', '🔴');
+    log(`camera: error ${err.message}`);
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    showIOSHelp();
+  }
+});
+
+// Location Permission
+document.getElementById('btn-perm-geo').addEventListener('click', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const btn = e.currentTarget;
+  if (btn.disabled || btn.classList.contains('loading')) return;
+  
+  setStat('stat-geo', '🟡');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  log('geo: requesting');
+  
+  if (!('geolocation' in navigator)) {
+    setStat('stat-geo', '🔴');
+    log('geo: not supported');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    return;
+  }
+  
+  const opts = {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 20000
+  };
+  
+  let gotFirst = false;
+  
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      gotFirst = true;
+      state.geo.granted = true;
+      state.geo.last = pos;
+      
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      const acc = Math.round(pos.coords.accuracy);
+      
+      setStat('stat-geo', '🟢');
+      log(`geo: granted lat=${lat} lng=${lng} acc=±${acc}m`);
+      
+      // Start watch after first fix
+      state.geo.watchId = navigator.geolocation.watchPosition(
+        (p) => {
+          state.geo.last = p;
+          updateHUDGeo(p);
+        },
+        (err) => {
+          log(`geo: watch error ${err.code} ${err.message}`);
+        },
+        opts
+      );
+      
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      maybeEnableStartAR();
+    },
+    (err) => {
+      setStat('stat-geo', '🔴');
+      log(`geo: error ${err.code} ${err.message}`);
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      showIOSHelp();
+    },
+    opts
+  );
+});
+
+// Motion & Orientation Permission
+document.getElementById('btn-perm-imu').addEventListener('click', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const btn = e.currentTarget;
+  if (btn.disabled || btn.classList.contains('loading')) return;
+  
+  setStat('stat-imu', '🟡');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  log('imu: requesting');
+  
+  try {
+    const needIOS = typeof DeviceMotionEvent !== 'undefined' 
+      && typeof DeviceMotionEvent.requestPermission === 'function';
+    
+    if (needIOS) {
+      log('imu: iOS detected, requesting permissions...');
+      
+      // Request DeviceMotionEvent permission
+      const r1 = await DeviceMotionEvent.requestPermission();
+      log(`imu: DeviceMotionEvent permission: ${r1}`);
+      
+      // Request DeviceOrientationEvent permission
+      let r2 = 'granted';
+      if (typeof DeviceOrientationEvent !== 'undefined' 
+          && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        r2 = await DeviceOrientationEvent.requestPermission();
+        log(`imu: DeviceOrientationEvent permission: ${r2}`);
+      }
+      
+      if (r1 !== 'granted' || r2 !== 'granted') {
+        setStat('stat-imu', '🔴');
+        log('imu: denied');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        showIOSHelp();
+        return;
+      }
+    }
+    
+    // Attach listeners
+    window.addEventListener('deviceorientation', onOrient, { passive: true });
+    window.addEventListener('deviceorientationabsolute', onOrient, { passive: true });
+    
+    state.imu.granted = true;
+    state.imu.active = true;
+    setStat('stat-imu', '🟢');
+    log('imu: granted & listening');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    maybeEnableStartAR();
+    
+  } catch (err) {
+    setStat('stat-imu', '🔴');
+    log(`imu: error ${err.message}`);
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    showIOSHelp();
+  }
+});
+
+// ============================================================================
+// ORIENTATION HANDLER
+// ============================================================================
+
+function onOrient(ev) {
+  // Compute compass heading
+  let heading = null;
+  
+  // iOS webkitCompassHeading (most accurate)
+  if (ev.webkitCompassHeading !== undefined && ev.webkitCompassHeading !== null) {
+    heading = ev.webkitCompassHeading;
+  }
+  // Android/absolute orientation
+  else if (ev.absolute && ev.alpha !== null) {
+    heading = 360 - ev.alpha;
+  }
+  // Relative orientation (fallback)
+  else if (ev.alpha !== null) {
+    heading = 360 - ev.alpha;
+  }
+  
+  if (heading !== null) {
+    // Normalize to 0-359
+    heading = ((heading % 360) + 360) % 360;
+    state.imu.headingDeg = heading;
+    updateHUDHeading(heading);
+  }
+}
+
+function computeHeadingFromEuler(ev) {
+  if (ev.webkitCompassHeading !== undefined) {
+    return ev.webkitCompassHeading;
+  }
+  if (ev.alpha !== null) {
+    return ((360 - ev.alpha) % 360 + 360) % 360;
+  }
+  return null;
+}
+
+// ============================================================================
+// START AR LOGIC
+// ============================================================================
+
+function maybeEnableStartAR() {
+  const btn = document.getElementById('btn-start-ar');
+  if (!btn) return;
+  
+  const ready = state.camera.granted && state.geo.granted;
+  btn.disabled = !ready;
+  
+  if (ready) {
+    log('start-ar: ready (Camera + Location granted)');
+  } else {
+    const missing = [];
+    if (!state.camera.granted) missing.push('Camera');
+    if (!state.geo.granted) missing.push('Location');
+    log(`start-ar: not ready (missing: ${missing.join(', ')})`);
+  }
+}
+
+document.getElementById('btn-start-ar').addEventListener('click', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (!(state.camera.granted && state.geo.granted)) {
+    log('start-ar: not ready');
+    return;
+  }
+  
+  log('start-ar: initializing AR scene...');
+  setChip('AR');
+  
+  // Hide start screen, show AR screen
+  const startScreen = document.getElementById('start-screen');
+  const arScreen = document.getElementById('ar-screen');
+  
+  if (startScreen) startScreen.style.display = 'none';
+  if (arScreen) arScreen.style.display = 'block';
+  
+  // Initialize AR scene
+  await enterARScene();
+  
+  log('start-ar: AR scene ready');
+});
+
+// ============================================================================
+// DEMO MODE
+// ============================================================================
+
+document.getElementById('btn-start-demo').addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  log('demo: starting (no sensors required)');
+  stopAllSensors();
+  
+  state.mode = 'DEMO';
+  setChip('DEMO');
+  
+  // Hide start screen, show AR screen
+  const startScreen = document.getElementById('start-screen');
+  const arScreen = document.getElementById('ar-screen');
+  
+  if (startScreen) startScreen.style.display = 'none';
+  if (arScreen) arScreen.style.display = 'block';
+  
+  // Get preset (West Kowloon Freespace)
+  const preset = {
+    lat: 22.3045,
+    lng: 114.1595,
+    headingDeg: 120 // Facing Victoria Harbour
+  };
+  
+  initDemoRuntime(preset);
+  log('demo: initialized with preset location');
+});
+
+function initDemoRuntime(preset) {
+  // Set synthetic GPS
+  state.geo.granted = true;
+  state.geo.last = {
+    coords: {
+      latitude: preset.lat,
+      longitude: preset.lng,
+      accuracy: 10
+    }
+  };
+  
+  // Set synthetic heading
+  state.imu.granted = true;
+  state.imu.headingDeg = preset.headingDeg;
+  
+  // Update HUD
+  updateHUDGeo(state.geo.last);
+  updateHUDHeading(preset.headingDeg);
+  
+  // Initialize AR scene (without camera)
+  enterARScene(false); // false = no camera
+  
+  // Update mode badge
+  const badge = document.getElementById('mode-badge');
+  if (badge) {
+    badge.textContent = 'DEMO MODE';
+    badge.className = 'mode-badge demo';
+  }
+  
+  log(`demo: preset location ${preset.lat}, ${preset.lng}, heading ${preset.headingDeg}°`);
+}
+
+// ============================================================================
+// AR SCENE INITIALIZATION
+// ============================================================================
+
+async function enterARScene(useCamera = true) {
+  log('ar-scene: initializing...');
+  
+  const scene = document.querySelector('a-scene');
+  if (!scene) {
+    log('ar-scene: scene not found');
+    return;
+  }
+  
+  // Wait for scene to load
+  if (!scene.hasLoaded) {
+    await new Promise((resolve) => {
+      scene.addEventListener('loaded', resolve, { once: true });
+    });
+  }
+  
+  log('ar-scene: scene loaded');
+  
+  if (useCamera && state.camera.stream) {
+    // Attach camera stream to AR.js video
+    const video = scene.querySelector('video');
+    if (video && !video.srcObject) {
+      video.srcObject = state.camera.stream;
+      await video.play().catch(() => {});
+      log('ar-scene: camera stream attached');
+    }
+  }
+  
+  // Start update loop
+  startUpdateLoop();
+  
+  log('ar-scene: ready');
+}
+
+// ============================================================================
+// UPDATE LOOPS
+// ============================================================================
+
+function startUpdateLoop() {
+  const update = () => {
+    updateHUD();
+    updatePOIDistances();
+    requestAnimationFrame(update);
+  };
+  update();
+}
+
+function updatePOIDistances() {
+  if (!state.geo.last) return;
+  
+  const userLat = state.geo.last.coords.latitude;
+  const userLng = state.geo.last.coords.longitude;
+  
+  POIS.forEach(poi => {
+    const distance = calculateDistance(userLat, userLng, poi.lat, poi.lng);
+    const distEl = document.getElementById(`poi-dist-${poi.id}`);
+    if (distEl) {
+      if (distance < 1000) {
+        distEl.setAttribute('value', `${Math.round(distance)}m`);
+      } else {
+        distEl.setAttribute('value', `${(distance / 1000).toFixed(1)}km`);
+      }
+    }
+  });
+}
+
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // Earth radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function updateHUD() {
+  // Update heading
+  if (state.imu.headingDeg !== null) {
+    updateHUDHeading(state.imu.headingDeg);
+  }
+  
+  // Update GPS
+  if (state.geo.last) {
+    updateHUDGeo(state.geo.last);
+  }
+}
+
+function updateHUDHeading(heading) {
+  const el = document.getElementById('heading-value');
+  if (el) {
+    el.textContent = `${Math.round(heading)}°`;
+  }
+}
+
+function updateHUDGeo(pos) {
+  const gpsEl = document.getElementById('gps-value');
+  const accEl = document.getElementById('accuracy-value');
+  
+  if (gpsEl && pos) {
+    gpsEl.textContent = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+  }
+  
+  if (accEl && pos) {
+    accEl.textContent = `±${Math.round(pos.coords.accuracy)}m`;
+  }
+}
+
+// ============================================================================
+// CLEANUP
+// ============================================================================
+
+function stopAllSensors() {
+  // Stop camera
+  try {
+    const video = document.getElementById('camera');
+    if (video && video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+    }
+  } catch (e) {
+    log(`cleanup: camera error ${e.message}`);
+  }
+  
+  // Stop location watch
+  try {
+    if (state.geo.watchId) {
+      navigator.geolocation.clearWatch(state.geo.watchId);
+      state.geo.watchId = null;
+    }
+  } catch (e) {
+    log(`cleanup: geo error ${e.message}`);
+  }
+  
+  // Remove orientation listeners
+  window.removeEventListener('deviceorientation', onOrient);
+  window.removeEventListener('deviceorientationabsolute', onOrient);
+  
+  log('cleanup: all sensors stopped');
+}
+
+// ============================================================================
+// iOS HELP
+// ============================================================================
+
+function showIOSHelp() {
+  const helpEl = document.getElementById('ios-help');
+  if (helpEl) {
+    helpEl.style.display = 'block';
+  }
+}
+
+document.getElementById('ios-help-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  const modal = document.getElementById('ios-help-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+});
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+window.addEventListener('DOMContentLoaded', () => {
+  log(`boot: ua=${navigator.userAgent.substring(0, 50)}`);
+  log(`boot: secure=${window.isSecureContext}`);
+  log(`boot: ts=${Date.now()}`);
+  
+  setChip('INIT');
+  
+  // Check initial permission states
+  maybeEnableStartAR();
+  
+  log('boot: ready');
+});
+
+// Expose for debugging
+window.SightlineState = state;
+window.SightlineLog = log;
+window.SightlineStopSensors = stopAllSensors;
+
