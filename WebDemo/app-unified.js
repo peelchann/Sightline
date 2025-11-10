@@ -60,6 +60,9 @@ const Permissions = {
   /**
    * Request all permissions SEQUENTIALLY (preserves user gesture context for iOS)
    * CRITICAL: Must be called directly from user gesture handler, no async delays
+   * 
+   * iOS ISSUE: After camera permission prompt, gesture context may be lost.
+   * SOLUTION: Start location/motion requests IMMEDIATELY without waiting for camera to complete
    */
   async requestAll() {
     console.log('[Permissions] Starting unified permission request (sequential for iOS compatibility)...');
@@ -70,15 +73,28 @@ const Permissions = {
     UI.tickPermit('location', 'requesting');
     UI.tickPermit('motion', 'requesting');
     
-    // REQUEST SEQUENTIALLY (not parallel) to preserve user gesture context on iOS
-    // iOS requires permission requests to happen synchronously from gesture handler
-    
-    // 1. Camera (most critical, request first)
+    // CRITICAL iOS FIX: Start location request IMMEDIATELY (don't wait for camera)
+    // This preserves gesture context better on iOS Chrome
     LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     LogPanel.push('[1/3] 📷 REQUESTING CAMERA...');
     console.log('[Permissions] [1/3] Requesting camera...');
+    
+    // Start camera request
+    const cameraPromise = this.requestCamera().catch(error => {
+      return { ok: false, stream: null, error: error.message || 'camera_exception' };
+    });
+    
+    // CRITICAL: Start location request IMMEDIATELY (don't await camera first)
+    // This ensures gesture context is preserved on iOS
+    LogPanel.push('[2/3] 📍 STARTING LOCATION REQUEST (parallel with camera)...');
+    console.log('[Permissions] [2/3] Starting location request (parallel)...');
+    const locationPromise = this.requestLocation().catch(error => {
+      return { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
+    });
+    
+    // Wait for camera to complete first (most critical)
     try {
-      this.results.camera = await this.requestCamera();
+      this.results.camera = await cameraPromise;
       UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
       if (this.results.camera.ok) {
         LogPanel.push('✅ [1/3] Camera GRANTED');
@@ -94,12 +110,11 @@ const Permissions = {
       console.error('[Permissions] ❌ [1/3] Camera exception:', error);
     }
     
-    // CRITICAL: Continue to next permission even if camera failed
+    // Now wait for location (should already be in progress)
     LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    LogPanel.push('[2/3] 📍 REQUESTING LOCATION...');
-    console.log('[Permissions] [2/3] Requesting location...');
+    LogPanel.push('[2/3] 📍 WAITING FOR LOCATION...');
     try {
-      this.results.location = await this.requestLocation();
+      this.results.location = await locationPromise;
       UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
       if (this.results.location.ok) {
         LogPanel.push('✅ [2/3] Location GRANTED');
@@ -115,7 +130,7 @@ const Permissions = {
       console.error('[Permissions] ❌ [2/3] Location exception:', error);
     }
     
-    // CRITICAL: Continue to next permission even if location failed
+    // CRITICAL: Request motion IMMEDIATELY after location (preserve gesture context)
     LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     LogPanel.push('[3/3] 🧭 REQUESTING MOTION...');
     console.log('[Permissions] [3/3] Requesting motion...');
