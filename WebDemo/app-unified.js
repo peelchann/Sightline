@@ -58,42 +58,56 @@ const Permissions = {
   },
   
   /**
-   * Request all permissions SEQUENTIALLY (preserves user gesture context for iOS)
-   * CRITICAL: Must be called directly from user gesture handler, no async delays
-   * 
-   * iOS ISSUE: After camera permission prompt, gesture context may be lost.
-   * SOLUTION: Start location/motion requests IMMEDIATELY without waiting for camera to complete
+   * Request all permissions SYNCHRONOUSLY (no awaits between initiations)
+   * CRITICAL: All permission requests must start in the SAME synchronous call stack
+   * iOS Chrome loses gesture context after ANY await, so we start all requests immediately
    */
   async requestAll() {
-    console.log('[Permissions] Starting unified permission request (sequential for iOS compatibility)...');
-    LogPanel.push('[Permissions] Starting requests...');
+    console.log('[Permissions] Starting SYNCHRONOUS permission requests (no awaits between initiations)...');
+    LogPanel.push('[Permissions] ⚡ SYNCHRONOUS MODE: Starting all requests NOW...');
     
     // Mark all as requesting
     UI.tickPermit('camera', 'requesting');
     UI.tickPermit('location', 'requesting');
     UI.tickPermit('motion', 'requesting');
     
-    // CRITICAL iOS FIX: Start location request IMMEDIATELY (don't wait for camera)
-    // This preserves gesture context better on iOS Chrome
     LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    LogPanel.push('[1/3] 📷 REQUESTING CAMERA...');
-    console.log('[Permissions] [1/3] Requesting camera...');
     
-    // Start camera request
+    // CRITICAL: Start ALL permission requests SYNCHRONOUSLY (no await between them)
+    // This is the ONLY way to preserve gesture context on iOS Chrome
+    
+    LogPanel.push('[SYNC] 📷 Initiating camera request...');
+    console.log('[Permissions] [SYNC] Initiating camera...');
     const cameraPromise = this.requestCamera().catch(error => {
+      console.error('[Permissions] Camera promise rejected:', error);
       return { ok: false, stream: null, error: error.message || 'camera_exception' };
     });
     
-    // CRITICAL: Start location request IMMEDIATELY (don't await camera first)
-    // This ensures gesture context is preserved on iOS
-    LogPanel.push('[2/3] 📍 STARTING LOCATION REQUEST (parallel with camera)...');
-    console.log('[Permissions] [2/3] Starting location request (parallel)...');
+    // NO AWAIT HERE - Start location immediately
+    LogPanel.push('[SYNC] 📍 Initiating location request...');
+    console.log('[Permissions] [SYNC] Initiating location...');
     const locationPromise = this.requestLocation().catch(error => {
+      console.error('[Permissions] Location promise rejected:', error);
       return { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
     });
     
-    // Wait for camera to complete first (most critical)
+    // NO AWAIT HERE - Start motion immediately
+    LogPanel.push('[SYNC] 🧭 Initiating motion request...');
+    console.log('[Permissions] [SYNC] Initiating motion...');
+    const motionPromise = this.requestMotion().catch(error => {
+      console.error('[Permissions] Motion promise rejected:', error);
+      return { ok: false, error: error.message || 'motion_exception' };
+    });
+    
+    LogPanel.push('✅ All 3 requests initiated synchronously!');
+    LogPanel.push('⏳ Now awaiting results...');
+    
+    // NOW we can await (all requests are already started)
+    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // Wait for camera
     try {
+      LogPanel.push('[1/3] ⏳ Waiting for camera...');
       this.results.camera = await cameraPromise;
       UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
       if (this.results.camera.ok) {
@@ -110,10 +124,9 @@ const Permissions = {
       console.error('[Permissions] ❌ [1/3] Camera exception:', error);
     }
     
-    // Now wait for location (should already be in progress)
-    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    LogPanel.push('[2/3] 📍 WAITING FOR LOCATION...');
+    // Wait for location
     try {
+      LogPanel.push('[2/3] ⏳ Waiting for location...');
       this.results.location = await locationPromise;
       UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
       if (this.results.location.ok) {
@@ -130,12 +143,10 @@ const Permissions = {
       console.error('[Permissions] ❌ [2/3] Location exception:', error);
     }
     
-    // CRITICAL: Request motion IMMEDIATELY after location (preserve gesture context)
-    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    LogPanel.push('[3/3] 🧭 REQUESTING MOTION...');
-    console.log('[Permissions] [3/3] Requesting motion...');
+    // Wait for motion
     try {
-      this.results.motion = await this.requestMotion();
+      LogPanel.push('[3/3] ⏳ Waiting for motion...');
+      this.results.motion = await motionPromise;
       UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
       if (this.results.motion.ok) {
         LogPanel.push('✅ [3/3] Motion GRANTED');
@@ -887,15 +898,24 @@ const LogPanel = {
 // INIT FLOW
 // ============================================================================
 
-async function onEnableClick(e) {
-  e.preventDefault();
-  e.stopPropagation();
+// Expose handlers globally for onclick attribute
+window.handleEnableClick = async function(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
   
-  LogPanel.push('🔵 Enable button clicked');
-  console.log('[Init] User clicked enable permissions');
+  LogPanel.push('🔵 Enable button clicked (onclick handler)');
+  console.log('[Init] User clicked enable permissions (onclick)');
   
   // CRITICAL: Disable button immediately to prevent double-clicks
-  const btn = e.currentTarget;
+  const btn = document.getElementById('cta-enable');
+  if (!btn) {
+    LogPanel.push('❌ Enable button not found!');
+    console.error('[Init] ❌ cta-enable button not found');
+    return;
+  }
+  
   if (btn.disabled) {
     LogPanel.push('⚠️ Button already disabled, ignoring click');
     return;
@@ -908,10 +928,10 @@ async function onEnableClick(e) {
   UI.hideError();
   
   try {
-    LogPanel.push('📋 Requesting all permissions (sequential)...');
+    LogPanel.push('📋 Requesting all permissions (SYNCHRONOUS mode)...');
     
     // CRITICAL: Request permissions NOW, directly from gesture handler
-    // Don't await anything before this - iOS requires gesture context
+    // All requests start synchronously (no await between initiations)
     const results = await Permissions.requestAll();
     
     LogPanel.push(`📊 Permission results received`);
@@ -964,12 +984,14 @@ async function onEnableClick(e) {
   }
 }
 
-function onDemoClick(e) {
-  e.preventDefault();
-  e.stopPropagation();
+window.handleDemoClick = function(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
   
-  LogPanel.push('Demo mode button clicked');
-  console.log('[Init] User clicked demo mode');
+  LogPanel.push('Demo mode button clicked (onclick handler)');
+  console.log('[Init] User clicked demo mode (onclick)');
   
   setState(AppState.READY, { msg: 'Initializing Demo Mode...' });
   
@@ -979,17 +1001,32 @@ function onDemoClick(e) {
   
   LogPanel.push('✅ Demo mode initialized');
   setState(AppState.RUNNING, { msg: 'Demo Mode (No Sensors)' });
-}
+};
 
-function onRetryClick(e) {
-  e.preventDefault();
-  e.stopPropagation();
+window.handleRetryClick = function(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
   
-  LogPanel.push('Retry button clicked');
-  console.log('[Init] User clicked retry');
+  LogPanel.push('Retry button clicked (onclick handler)');
+  console.log('[Init] User clicked retry (onclick)');
   setState(AppState.PERMISSION_GATE);
   UI.hideError();
   UI.setCtaLoading(false);
+};
+
+// Keep old function names for backward compatibility
+function onEnableClick(e) {
+  return window.handleEnableClick(e);
+}
+
+function onDemoClick(e) {
+  return window.handleDemoClick(e);
+}
+
+function onRetryClick(e) {
+  return window.handleRetryClick(e);
 }
 
 async function startApp() {
