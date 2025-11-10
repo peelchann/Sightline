@@ -74,55 +74,76 @@ const Permissions = {
     // iOS requires permission requests to happen synchronously from gesture handler
     
     // 1. Camera (most critical, request first)
-    LogPanel.push('[Permissions] Requesting camera...');
+    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    LogPanel.push('[1/3] 📷 REQUESTING CAMERA...');
+    console.log('[Permissions] [1/3] Requesting camera...');
     try {
       this.results.camera = await this.requestCamera();
       UI.tickPermit('camera', this.results.camera.ok ? 'ok' : 'error');
       if (this.results.camera.ok) {
-        LogPanel.push('✅ Camera granted');
+        LogPanel.push('✅ [1/3] Camera GRANTED');
+        console.log('[Permissions] ✅ [1/3] Camera granted');
       } else {
-        LogPanel.push(`❌ Camera failed: ${this.results.camera.error}`);
+        LogPanel.push(`❌ [1/3] Camera FAILED: ${this.results.camera.error}`);
+        console.error('[Permissions] ❌ [1/3] Camera failed:', this.results.camera.error);
       }
     } catch (error) {
       this.results.camera = { ok: false, stream: null, error: error.message || 'camera_exception' };
       UI.tickPermit('camera', 'error');
-      LogPanel.push(`❌ Camera exception: ${error.message}`);
+      LogPanel.push(`❌ [1/3] Camera EXCEPTION: ${error.message}`);
+      console.error('[Permissions] ❌ [1/3] Camera exception:', error);
     }
     
-    // 2. Location
-    LogPanel.push('[Permissions] Requesting location...');
+    // CRITICAL: Continue to next permission even if camera failed
+    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    LogPanel.push('[2/3] 📍 REQUESTING LOCATION...');
+    console.log('[Permissions] [2/3] Requesting location...');
     try {
       this.results.location = await this.requestLocation();
       UI.tickPermit('location', this.results.location.ok ? 'ok' : 'error');
       if (this.results.location.ok) {
-        LogPanel.push('✅ Location granted');
+        LogPanel.push('✅ [2/3] Location GRANTED');
+        console.log('[Permissions] ✅ [2/3] Location granted');
       } else {
-        LogPanel.push(`❌ Location failed: ${this.results.location.error}`);
+        LogPanel.push(`❌ [2/3] Location FAILED: ${this.results.location.error}`);
+        console.error('[Permissions] ❌ [2/3] Location failed:', this.results.location.error);
       }
     } catch (error) {
       this.results.location = { ok: false, position: null, watchId: null, error: error.message || 'location_exception' };
       UI.tickPermit('location', 'error');
-      LogPanel.push(`❌ Location exception: ${error.message}`);
+      LogPanel.push(`❌ [2/3] Location EXCEPTION: ${error.message}`);
+      console.error('[Permissions] ❌ [2/3] Location exception:', error);
     }
     
-    // 3. Motion (iOS-specific, must be called directly from gesture)
-    LogPanel.push('[Permissions] Requesting motion...');
+    // CRITICAL: Continue to next permission even if location failed
+    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    LogPanel.push('[3/3] 🧭 REQUESTING MOTION...');
+    console.log('[Permissions] [3/3] Requesting motion...');
     try {
       this.results.motion = await this.requestMotion();
       UI.tickPermit('motion', this.results.motion.ok ? 'ok' : 'error');
       if (this.results.motion.ok) {
-        LogPanel.push('✅ Motion granted');
+        LogPanel.push('✅ [3/3] Motion GRANTED');
+        console.log('[Permissions] ✅ [3/3] Motion granted');
       } else {
-        LogPanel.push(`❌ Motion failed: ${this.results.motion.error}`);
+        LogPanel.push(`❌ [3/3] Motion FAILED: ${this.results.motion.error}`);
+        console.error('[Permissions] ❌ [3/3] Motion failed:', this.results.motion.error);
       }
     } catch (error) {
       this.results.motion = { ok: false, error: error.message || 'motion_exception' };
       UI.tickPermit('motion', 'error');
-      LogPanel.push(`❌ Motion exception: ${error.message}`);
+      LogPanel.push(`❌ [3/3] Motion EXCEPTION: ${error.message}`);
+      console.error('[Permissions] ❌ [3/3] Motion exception:', error);
     }
     
-    console.log('[Permissions] All requests completed:', this.results);
-    LogPanel.push(`[Permissions] Results: Camera=${this.results.camera.ok}, Location=${this.results.location.ok}, Motion=${this.results.motion.ok}`);
+    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    console.log('[Permissions] ✅ ALL REQUESTS COMPLETED:', this.results);
+    LogPanel.push(`📊 FINAL RESULTS:`);
+    LogPanel.push(`   Camera: ${this.results.camera.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.camera.error || ''}`);
+    LogPanel.push(`   Location: ${this.results.location.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.location.error || ''}`);
+    LogPanel.push(`   Motion: ${this.results.motion.ok ? '✅ GRANTED' : '❌ FAILED'} ${this.results.motion.error || ''}`);
+    LogPanel.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return this.results;
   },
   
