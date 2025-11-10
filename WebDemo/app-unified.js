@@ -232,32 +232,41 @@ const Permissions = {
       
       LogPanel.push('[Location] Requesting current position...');
       
-      // First, get current position with longer timeout for iOS
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            LogPanel.push(`✅ Position received: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
-            resolve(pos);
-          },
-          (error) => {
-            // Map error codes to messages
-            let errorMsg = 'geo_error:';
-            switch (error.code) {
-              case 1: errorMsg += 'PERMISSION_DENIED'; break;
-              case 2: errorMsg += 'POSITION_UNAVAILABLE'; break;
-              case 3: errorMsg += 'TIMEOUT'; break;
-              default: errorMsg += error.code;
+      // First, get current position with timeout protection
+      const position = await Promise.race([
+        new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              LogPanel.push(`✅ Position received: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+              resolve(pos);
+            },
+            (error) => {
+              // Map error codes to messages
+              let errorMsg = 'geo_error:';
+              switch (error.code) {
+                case 1: errorMsg += 'PERMISSION_DENIED'; break;
+                case 2: errorMsg += 'POSITION_UNAVAILABLE'; break;
+                case 3: errorMsg += 'TIMEOUT'; break;
+                default: errorMsg += error.code;
+              }
+              LogPanel.push(`❌ Location error: ${errorMsg}`);
+              reject(new Error(errorMsg));
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 15000, // 15 seconds
+              maximumAge: 0,
             }
-            LogPanel.push(`❌ Location error: ${errorMsg}`);
-            reject(new Error(errorMsg));
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 20000, // 20 seconds for iOS
-            maximumAge: 0,
-          }
-        );
-      });
+          );
+        }),
+        // Timeout fallback (20 seconds total)
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            LogPanel.push('❌ Location request timed out after 20 seconds');
+            reject(new Error('geo_error:TIMEOUT_OVERRIDE'));
+          }, 20000);
+        }),
+      ]);
       
       console.log('[Permissions] ✅ Location granted:', position.coords);
       console.log('[Permissions] Location accuracy:', position.coords.accuracy, 'm');
