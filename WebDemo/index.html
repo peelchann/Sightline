@@ -356,6 +356,34 @@
   </div>
 
   <!-- App Script -->
+  <!-- Define handlers IMMEDIATELY so onclick attributes work -->
+  <script>
+    // Define handlers before DOM loads so onclick attributes work
+    window.handleEnableClick = async function(e) {
+      console.log('[INLINE] Enable button clicked!');
+      if (window.handleEnableClickFull) {
+        return window.handleEnableClickFull(e);
+      } else {
+        alert('App still loading... Please wait a moment and try again.');
+      }
+    };
+    
+    window.handleDemoClick = function(e) {
+      console.log('[INLINE] Demo button clicked!');
+      if (window.handleDemoClickFull) {
+        return window.handleDemoClickFull(e);
+      } else {
+        alert('App still loading... Please wait a moment and try again.');
+      }
+    };
+    
+    window.handleRetryClick = function(e) {
+      console.log('[INLINE] Retry button clicked!');
+      if (window.handleRetryClickFull) {
+        return window.handleRetryClickFull(e);
+      }
+    };
+  </script>
   <script src="app-unified.js"></script>
 </body>
 </html>
