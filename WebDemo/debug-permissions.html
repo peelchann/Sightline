@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sightline - Permission Debug Page</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: #4ADE80;
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+    
+    .section {
+      background: #2a2a2a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #3a3a3a;
+    }
+    
+    .section h2 {
+      color: #60A5FA;
+      margin-bottom: 15px;
+      font-size: 20px;
+      border-bottom: 2px solid #3a3a3a;
+      padding-bottom: 10px;
+    }
+    
+    .permission-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border-left: 4px solid #3a3a3a;
+    }
+    
+    .permission-item.granted {
+      border-left-color: #4ADE80;
+    }
+    
+    .permission-item.denied {
+      border-left-color: #F87171;
+    }
+    
+    .permission-item.prompt {
+      border-left-color: #FBBF24;
+    }
+    
+    .permission-name {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    
+    .permission-status {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-granted {
+      background: #065F46;
+      color: #4ADE80;
+    }
+    
+    .status-denied {
+      background: #7F1D1D;
+      color: #F87171;
+    }
+    
+    .status-prompt {
+      background: #78350F;
+      color: #FBBF24;
+    }
+    
+    .status-unavailable {
+      background: #374151;
+      color: #9CA3AF;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      transition: opacity 0.2s;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-secondary {
+      background: #3a3a3a;
+    }
+    
+    .info-box {
+      background: #1a1a1a;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #9CA3AF;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    
+    .timestamp {
+      color: #6B7280;
+      margin-right: 8px;
+    }
+    
+    .auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .auto-refresh input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .refresh-interval {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: 20px;
+    }
+    
+    .refresh-interval input {
+      width: 60px;
+      padding: 4px 8px;
+      background: #1a1a1a;
+      border: 1px solid #3a3a3a;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 14px;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    .badge-live {
+      background: #065F46;
+      color: #4ADE80;
+    }
+    
+    .badge-stopped {
+      background: #7F1D1D;
+      color: #F87171;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Permission Debug Dashboard</h1>
+    
+    <!-- Control Panel -->
+    <div class="section">
+      <h2>Controls</h2>
+      <button class="btn" onclick="checkAllPermissions()">🔄 Refresh All Permissions</button>
+      <button class="btn btn-secondary" onclick="clearLogs()">🗑️ Clear Logs</button>
+      <button class="btn btn-secondary" onclick="exportLogs()">📥 Export Logs</button>
+      
+      <div class="auto-refresh">
+        <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+        <label for="autoRefresh">Auto-refresh every</label>
+        <div class="refresh-interval">
+          <input type="number" id="refreshInterval" value="2" min="1" max="60">
+          <span>seconds</span>
+          <span class="status-badge" id="autoRefreshStatus" class="badge-stopped">Stopped</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Current Permission States -->
+    <div class="section">
+      <h2>Current Permission States</h2>
+      <div id="permission-list">
+        <div class="permission-item">
+          <span class="permission-name">Loading...</span>
+          <span class="permission-status status-unavailable">Checking...</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Permission History -->
+    <div class="section">
+      <h2>Permission Check History</h2>
+      <div id="permission-log" class="info-box">
+        <div class="log-entry">Waiting for first check...</div>
+      </div>
+    </div>
+    
+    <!-- Browser Info -->
+    <div class="section">
+      <h2>Browser & Environment Info</h2>
+      <div id="browser-info" class="info-box">
+        Loading...
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let autoRefreshInterval = null;
+    let checkHistory = [];
+    
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      updateBrowserInfo();
+      checkAllPermissions();
+    });
+    
+    /**
+     * Check all permissions
+     */
+    async function checkAllPermissions() {
+      const timestamp = new Date().toISOString();
+      addLog(`[${new Date().toLocaleTimeString()}] Starting permission check...`);
+      
+      const permissions = {
+        camera: await checkCameraPermission(),
+        location: await checkLocationPermission(),
+        motion: await checkMotionPermission(),
+      };
+      
+      // Update UI
+      updatePermissionList(permissions);
+      
+      // Add to history
+      checkHistory.push({
+        timestamp,
+        permissions,
+      });
+      
+      addLog(`[${new Date().toLocaleTimeString()}] Check complete:`, permissions);
+    }
+    
+    /**
+     * Check camera permission
+     */
+    async function checkCameraPermission() {
+      try {
+        // Check if API is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          return { status: 'unavailable', error: 'getUserMedia not supported' };
+        }
+        
+        // Try to query permission state (if available)
+        try {
+          const result = await navigator.permissions.query({ name: 'camera' });
+          return {
+            status: result.state,
+            error: null,
+            details: `Permission API: ${result.state}`,
+          };
+        } catch (e) {
+          // Permission API not available, try to check by attempting access
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream.getTracks().forEach(track => track.stop());
+            return {
+              status: 'granted',
+              error: null,
+              details: 'Access confirmed (stream obtained)',
+            };
+          } catch (err) {
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+              return {
+                status: 'denied',
+                error: err.name,
+                details: `Access denied: ${err.message}`,
+              };
+            }
+            return {
+              status: 'prompt',
+              error: err.name,
+              details: `Not yet requested: ${err.message}`,
+            };
+          }
+        }
+      } catch (error) {
+        return {
+          status: 'error',
+          error: error.message,
+          details: `Error checking: ${error.message}`,
+        };
+      }
+    }
+    
+    /**
+     * Check location permission
+     */
+    async function checkLocationPermission() {
+      try {
+        if (!('geolocation' in navigator)) {
+          return { status: 'unavailable', error: 'Geolocation API not supported' };
+        }
+        
+        // Try to query permission state
+        try {
+          const result = await navigator.permissions.query({ name: 'geolocation' });
+          return {
+            status: result.state,
+            error: null,
+            details: `Permission API: ${result.state}`,
+          };
+        } catch (e) {
+          // Permission API not available, try to check by attempting access
+          return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+              resolve({
+                status: 'timeout',
+                error: 'Request timed out',
+                details: 'Location request timed out (user may not have responded)',
+              });
+            }, 3000);
+            
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                clearTimeout(timeout);
+                resolve({
+                  status: 'granted',
+                  error: null,
+                  details: `Access confirmed: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`,
+                });
+              },
+              (error) => {
+                clearTimeout(timeout);
+                let status = 'prompt';
+                if (error.code === 1) {
+                  status = 'denied';
+                } else if (error.code === 2) {
+                  status = 'unavailable';
+                }
+                resolve({
+                  status,
+                  error: `Error ${error.code}: ${error.message}`,
+                  details: `Location error: ${error.message}`,
+                });
+              },
+              { timeout: 3000, maximumAge: 0 }
+            );
+          });
+        }
+      } catch (error) {
+        return {
+          status: 'error',
+          error: error.message,
+          details: `Error checking: ${error.message}`,
+        };
+      }
+    }
+    
+    /**
+     * Check motion/orientation permission
+     */
+    async function checkMotionPermission() {
+      try {
+        // Check if iOS permission API exists
+        const hasIOSPermission = 
+          (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') ||
+          (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function');
+        
+        if (hasIOSPermission) {
+          // iOS: Check if we can access orientation events
+          return new Promise((resolve) => {
+            let gotEvent = false;
+            const timeout = setTimeout(() => {
+              if (!gotEvent) {
+                resolve({
+                  status: 'prompt',
+                  error: 'No events received',
+                  details: 'Motion permission not granted or events not available',
+                });
+              }
+            }, 1000);
+            
+            const onEvent = () => {
+              gotEvent = true;
+              clearTimeout(timeout);
+              window.removeEventListener('deviceorientation', onEvent);
+              window.removeEventListener('deviceorientationabsolute', onEvent);
+              resolve({
+                status: 'granted',
+                error: null,
+                details: 'Motion events confirmed (permission granted)',
+              });
+            };
+            
+            window.addEventListener('deviceorientation', onEvent, { once: true });
+            window.addEventListener('deviceorientationabsolute', onEvent, { once: true });
+          });
+        } else {
+          // Non-iOS: Check if events are available
+          return new Promise((resolve) => {
+            let gotEvent = false;
+            const timeout = setTimeout(() => {
+              if (!gotEvent) {
+                resolve({
+                  status: 'unavailable',
+                  error: 'No events received',
+                  details: 'Motion sensors not available or not supported',
+                });
+              }
+            }, 1000);
+            
+            const onEvent = () => {
+              gotEvent = true;
+              clearTimeout(timeout);
+              window.removeEventListener('deviceorientation', onEvent);
+              window.removeEventListener('deviceorientationabsolute', onEvent);
+              resolve({
+                status: 'granted',
+                error: null,
+                details: 'Motion events confirmed',
+              });
+            };
+            
+            window.addEventListener('deviceorientation', onEvent, { once: true });
+            window.addEventListener('deviceorientationabsolute', onEvent, { once: true });
+          });
+        }
+      } catch (error) {
+        return {
+          status: 'error',
+          error: error.message,
+          details: `Error checking: ${error.message}`,
+        };
+      }
+    }
+    
+    /**
+     * Update permission list UI
+     */
+    function updatePermissionList(permissions) {
+      const list = document.getElementById('permission-list');
+      list.innerHTML = '';
+      
+      const permissionNames = {
+        camera: '📷 Camera',
+        location: '📍 Location (GPS)',
+        motion: '🧭 Motion & Orientation',
+      };
+      
+      Object.entries(permissions).forEach(([key, perm]) => {
+        const item = document.createElement('div');
+        item.className = `permission-item ${perm.status}`;
+        
+        const statusClass = `status-${perm.status}`;
+        const statusText = perm.status.toUpperCase();
+        
+        item.innerHTML = `
+          <div>
+            <span class="permission-name">${permissionNames[key]}</span>
+            ${perm.details ? `<div style="font-size: 11px; color: #9CA3AF; margin-top: 4px;">${perm.details}</div>` : ''}
+          </div>
+          <span class="permission-status ${statusClass}">${statusText}</span>
+        `;
+        
+        list.appendChild(item);
+      });
+    }
+    
+    /**
+     * Add log entry
+     */
+    function addLog(message, data = null) {
+      const log = document.getElementById('permission-log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      
+      let content = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span>${message}`;
+      if (data) {
+        content += '\n' + JSON.stringify(data, null, 2);
+      }
+      
+      entry.textContent = content;
+      log.insertBefore(entry, log.firstChild);
+      
+      // Keep only last 50 entries
+      while (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+      }
+    }
+    
+    /**
+     * Update browser info
+     */
+    function updateBrowserInfo() {
+      const info = document.getElementById('browser-info');
+      info.textContent = `
+User Agent: ${navigator.userAgent}
+Secure Context: ${window.isSecureContext}
+Platform: ${navigator.platform}
+Language: ${navigator.language}
+MediaDevices API: ${navigator.mediaDevices ? 'Available' : 'Not Available'}
+Geolocation API: ${'geolocation' in navigator ? 'Available' : 'Not Available'}
+DeviceOrientationEvent: ${typeof DeviceOrientationEvent !== 'undefined' ? 'Available' : 'Not Available'}
+DeviceMotionEvent: ${typeof DeviceMotionEvent !== 'undefined' ? 'Available' : 'Not Available'}
+iOS Permission API: ${(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') ? 'Available' : 'Not Available'}
+      `.trim();
+    }
+    
+    /**
+     * Toggle auto-refresh
+     */
+    function toggleAutoRefresh() {
+      const checkbox = document.getElementById('autoRefresh');
+      const status = document.getElementById('autoRefreshStatus');
+      const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+      
+      if (checkbox.checked) {
+        status.textContent = 'Running';
+        status.className = 'status-badge badge-live';
+        autoRefreshInterval = setInterval(() => {
+          checkAllPermissions();
+        }, interval);
+        addLog('Auto-refresh enabled');
+      } else {
+        status.textContent = 'Stopped';
+        status.className = 'status-badge badge-stopped';
+        if (autoRefreshInterval) {
+          clearInterval(autoRefreshInterval);
+          autoRefreshInterval = null;
+        }
+        addLog('Auto-refresh disabled');
+      }
+    }
+    
+    /**
+     * Clear logs
+     */
+    function clearLogs() {
+      document.getElementById('permission-log').innerHTML = '<div class="log-entry">Logs cleared</div>';
+      checkHistory = [];
+      addLog('Logs cleared');
+    }
+    
+    /**
+     * Export logs
+     */
+    function exportLogs() {
+      const data = {
+        timestamp: new Date().toISOString(),
+        browserInfo: {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          secureContext: window.isSecureContext,
+        },
+        checkHistory,
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `permission-debug-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      addLog('Logs exported');
+    }
+  </script>
+</body>
+</html>
+
