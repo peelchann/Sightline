@@ -358,23 +358,106 @@
   <!-- App Script -->
   <!-- Define handlers IMMEDIATELY so onclick attributes work -->
   <script>
-    // Define handlers before DOM loads so onclick attributes work
+    // CRITICAL: Define handlers that work IMMEDIATELY, even before app-unified.js loads
+    // These will be replaced by full handlers when app-unified.js loads
+    
     window.handleEnableClick = async function(e) {
       console.log('[INLINE] Enable button clicked!');
-      if (window.handleEnableClickFull) {
-        return window.handleEnableClickFull(e);
+      
+      // Wait for app-unified.js to load (max 5 seconds)
+      let attempts = 0;
+      while (!window.Permissions && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (window.Permissions && window.Permissions.requestAll) {
+        console.log('[INLINE] App loaded, calling full handler');
+        if (window.handleEnableClickFull) {
+          return window.handleEnableClickFull(e);
+        }
+        // Fallback: call directly
+        return handleEnableClickDirect(e);
       } else {
-        alert('App still loading... Please wait a moment and try again.');
+        alert('App is still loading. Please wait a moment and try again.');
+        console.error('[INLINE] App not loaded after 5 seconds');
       }
     };
+    
+    // Direct handler if full handler not available
+    async function handleEnableClickDirect(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      console.log('[INLINE] Direct handler called');
+      const btn = document.getElementById('cta-enable');
+      if (btn) btn.disabled = true;
+      
+      // Show loading state
+      const stateBanner = document.getElementById('state-banner');
+      if (stateBanner) {
+        stateBanner.textContent = 'REQUESTING_PERMS — Requesting Camera, Location, Motion...';
+        stateBanner.className = 'state-banner requesting';
+      }
+      
+      // Request permissions directly
+      try {
+        console.log('[INLINE] Requesting permissions...');
+        const results = await window.Permissions.requestAll();
+        console.log('[INLINE] Permission results:', results);
+        
+        // Check results
+        const allOk = results.camera.ok && results.location.ok && results.motion.ok;
+        if (allOk) {
+          console.log('[INLINE] All permissions granted!');
+          if (stateBanner) {
+            stateBanner.textContent = 'READY — Initializing AR...';
+          }
+          // Initialize app
+          if (window.SightlineApp) {
+            const app = new window.SightlineApp();
+            window.APP = app;
+            await app.init(results);
+            if (stateBanner) {
+              stateBanner.textContent = 'RUNNING — Live AR Mode';
+              stateBanner.className = 'state-banner success';
+            }
+            // Hide start screen, show AR screen
+            const startScreen = document.getElementById('start-screen');
+            const arScreen = document.getElementById('ar-screen');
+            if (startScreen) startScreen.style.display = 'none';
+            if (arScreen) arScreen.style.display = 'block';
+          }
+        } else {
+          console.error('[INLINE] Not all permissions granted:', results);
+          if (stateBanner) {
+            stateBanner.textContent = 'ERROR — Some permissions denied';
+            stateBanner.className = 'state-banner error';
+          }
+          if (btn) btn.disabled = false;
+        }
+      } catch (error) {
+        console.error('[INLINE] Error:', error);
+        if (stateBanner) {
+          stateBanner.textContent = 'ERROR — ' + error.message;
+          stateBanner.className = 'state-banner error';
+        }
+        if (btn) btn.disabled = false;
+      }
+    }
     
     window.handleDemoClick = function(e) {
       console.log('[INLINE] Demo button clicked!');
       if (window.handleDemoClickFull) {
         return window.handleDemoClickFull(e);
-      } else {
-        alert('App still loading... Please wait a moment and try again.');
       }
+      // Fallback demo mode
+      const startScreen = document.getElementById('start-screen');
+      const arScreen = document.getElementById('ar-screen');
+      if (startScreen) startScreen.style.display = 'none';
+      if (arScreen) arScreen.style.display = 'block';
     };
     
     window.handleRetryClick = function(e) {
@@ -382,6 +465,8 @@
       if (window.handleRetryClickFull) {
         return window.handleRetryClickFull(e);
       }
+      // Fallback: reload page
+      window.location.reload();
     };
   </script>
   <script src="app-unified.js"></script>
