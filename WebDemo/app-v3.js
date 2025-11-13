@@ -1268,6 +1268,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupActionHandlers();
   setupIOSHelp();
   setupDebugToggle();
+  setupMuseumDebugToggle();
   
   // Setup resize handlers
   window.addEventListener('resize', () => {
@@ -1286,9 +1287,481 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 500);
 });
 
+// ============================================================================
+// MUSEUM ANCHOR CARD
+// ============================================================================
+
+let museumCardInstance = null;
+let museumModeActive = false;
+let leaderCanvas = null;
+let leaderCtx = null;
+let highlightTimeouts = new Map();
+
+// Museum card data
+const MUSEUM_CARD_DATA = {
+  title: 'Tyrannosaurus rex',
+  chip: 'Late Cretaceous',
+  subtitle: 'Predator with extreme bite force.',
+  location: 'You\'re here · Main Hall',
+  imageUrl: './assets/img/specimen-detail.jpg', // Placeholder
+  pills: {
+    active: 'In Range',
+    options: ['In Range', 'Visible', 'Nearest']
+  }
+};
+
+// AI reply templates with keyword mapping
+const AI_REPLIES = {
+  'bite force': {
+    text: 'The T. rex had one of the strongest bite forces of any land animal, estimated at 8,000–12,000 pounds per square inch. This allowed it to crush bone.',
+    highlight: 'upper_jaw'
+  },
+  'upper jaw': {
+    text: 'The upper jaw contains massive serrated teeth up to 12 inches long, designed for tearing flesh and crushing bone.',
+    highlight: 'upper_jaw'
+  },
+  'teeth': {
+    text: 'T. rex had 50–60 banana-sized teeth with serrated edges. They were constantly replaced throughout its life.',
+    highlight: 'teeth'
+  },
+  'skull': {
+    text: 'The skull was massive, up to 5 feet long, with powerful jaw muscles and large openings to reduce weight.',
+    highlight: 'skull'
+  },
+  default: {
+    text: 'Tyrannosaurus rex was one of the largest land predators, living 68–66 million years ago in what is now North America.',
+    highlight: null
+  }
+};
+
+function createMuseumCard() {
+  const container = document.getElementById('museum-card-container');
+  if (!container) return null;
+  
+  const card = document.createElement('div');
+  card.className = 'mx-card';
+  card.id = 'museum-card';
+  
+  card.innerHTML = `
+    <div class="mx-card__tile">
+      <img src="${MUSEUM_CARD_DATA.imageUrl}" alt="Specimen detail" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'520\\' height=\\'120\\'%3E%3Crect fill=\\'%23DDD\\' width=\\'520\\' height=\\'120\\'/%3E%3Ctext x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dy=\\'.3em\\' fill=\\'%23999\\' font-size=\\'18\\'%3ESpecimen Detail%3C/text%3E%3C/svg%3E'">
+    </div>
+    <div class="mx-card__title-row">
+      <h1 class="mx-card__title">${MUSEUM_CARD_DATA.title}</h1>
+      <span class="mx-chip">${MUSEUM_CARD_DATA.chip}</span>
+    </div>
+    <p class="mx-card__subtitle">${MUSEUM_CARD_DATA.subtitle}</p>
+    <div class="mx-card__bottom">
+      <span class="mx-here">${MUSEUM_CARD_DATA.location}</span>
+      <div class="mx-pills">
+        ${MUSEUM_CARD_DATA.pills.options.map((pill, i) => 
+          `<button class="mx-pill ${i === 0 ? 'mx-pill--active' : ''}" data-pill="${pill}">${pill}</button>`
+        ).join('')}
+      </div>
+    </div>
+    <button class="mx-more" id="mx-more-btn">More ▸ → Ask AI</button>
+    <div class="mx-drawer" id="mx-drawer">
+      <div class="mx-drawer__input">
+        <button class="mx-voice" id="mx-voice-btn" aria-label="Voice input">🎤</button>
+        <input class="mx-query" id="mx-query-input" placeholder="Ask about this fossil…" />
+        <button class="mx-send" id="mx-send-btn">Send</button>
+      </div>
+      <div class="mx-drawer__feed" id="mx-drawer-feed"></div>
+    </div>
+  `;
+  
+  container.appendChild(card);
+  container.style.display = 'block';
+  
+  // Setup event listeners
+  setupMuseumCardListeners(card);
+  
+  // Animate in
+  setTimeout(() => {
+    card.classList.add('mx-card--visible');
+    playSound('appear');
+  }, 50);
+  
+  return card;
+}
+
+function setupMuseumCardListeners(card) {
+  // More button
+  const moreBtn = card.querySelector('#mx-more-btn');
+  const drawer = card.querySelector('#mx-drawer');
+  
+  if (moreBtn && drawer) {
+    moreBtn.addEventListener('click', () => {
+      drawer.classList.toggle('mx-drawer--open');
+      moreBtn.textContent = drawer.classList.contains('mx-drawer--open') 
+        ? 'Less ▾' 
+        : 'More ▸ → Ask AI';
+    });
+  }
+  
+  // Voice button
+  const voiceBtn = card.querySelector('#mx-voice-btn');
+  const queryInput = card.querySelector('#mx-query-input');
+  
+  if (voiceBtn && queryInput) {
+    let recognition = null;
+    
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        queryInput.value = transcript;
+        voiceBtn.classList.remove('mx-voice--active');
+      };
+      
+      recognition.onerror = () => {
+        voiceBtn.classList.remove('mx-voice--active');
+      };
+      
+      recognition.onend = () => {
+        voiceBtn.classList.remove('mx-voice--active');
+      };
+    }
+    
+    voiceBtn.addEventListener('click', () => {
+      if (recognition) {
+        if (voiceBtn.classList.contains('mx-voice--active')) {
+          recognition.stop();
+        } else {
+          voiceBtn.classList.add('mx-voice--active');
+          recognition.start();
+        }
+      } else {
+        // Fallback: focus input
+        queryInput.focus();
+      }
+    });
+  }
+  
+  // Send button
+  const sendBtn = card.querySelector('#mx-send-btn');
+  if (sendBtn && queryInput) {
+    sendBtn.addEventListener('click', () => {
+      const query = queryInput.value.trim();
+      if (query) {
+        handleMuseumQuery(query);
+        queryInput.value = '';
+      }
+    });
+    
+    // Enter key
+    queryInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendBtn.click();
+      }
+    });
+  }
+  
+  // Pill buttons
+  card.querySelectorAll('.mx-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      card.querySelectorAll('.mx-pill').forEach(p => p.classList.remove('mx-pill--active'));
+      pill.classList.add('mx-pill--active');
+    });
+  });
+}
+
+function handleMuseumQuery(query) {
+  const feed = document.getElementById('mx-drawer-feed');
+  if (!feed) return;
+  
+  // Add user message
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg user';
+  userMsg.textContent = query;
+  feed.appendChild(userMsg);
+  feed.scrollTop = feed.scrollHeight;
+  
+  // Find matching AI reply
+  const lowerQuery = query.toLowerCase();
+  let reply = AI_REPLIES.default;
+  let highlightRegion = null;
+  
+  for (const [keyword, data] of Object.entries(AI_REPLIES)) {
+    if (keyword !== 'default' && lowerQuery.includes(keyword)) {
+      reply = data;
+      highlightRegion = data.highlight;
+      break;
+    }
+  }
+  
+  // Simulate AI delay
+  setTimeout(() => {
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'msg ai';
+    aiMsg.textContent = reply.text;
+    feed.appendChild(aiMsg);
+    feed.scrollTop = feed.scrollHeight;
+    
+    playSound('reply');
+    
+    // Highlight region if specified
+    if (highlightRegion) {
+      highlightRegionOnFossil(highlightRegion);
+    }
+  }, 500);
+}
+
+function highlightRegionOnFossil(regionId) {
+  // Clear existing highlights
+  clearAllHighlights();
+  
+  const anchor = document.getElementById(`bone_anchor_${regionId}`);
+  if (!anchor) return;
+  
+  // Get 3D position
+  const scene = document.querySelector('a-scene');
+  if (!scene) return;
+  
+  const camera = scene.querySelector('a-camera');
+  if (!camera) return;
+  
+  // Create highlight overlay on the fossil mesh
+  const fossilSkull = document.getElementById('fossil-skull');
+  if (fossilSkull) {
+    // Add emissive material for glow effect
+    fossilSkull.setAttribute('material', {
+      opacity: 0.8,
+      emissive: '#FFA500',
+      emissiveIntensity: 0.5
+    });
+    
+    // Auto-clear after 1.5s
+    const timeout = setTimeout(() => {
+      fossilSkull.setAttribute('material', {
+        opacity: 0.8,
+        emissive: '#000000',
+        emissiveIntensity: 0
+      });
+    }, 1500);
+    
+    highlightTimeouts.set(regionId, timeout);
+  }
+}
+
+function clearAllHighlights() {
+  highlightTimeouts.forEach(timeout => clearTimeout(timeout));
+  highlightTimeouts.clear();
+  
+  const fossilSkull = document.getElementById('fossil-skull');
+  if (fossilSkull) {
+    fossilSkull.setAttribute('material', {
+      opacity: 0.8,
+      emissive: '#000000',
+      emissiveIntensity: 0
+    });
+  }
+}
+
+function playSound(type) {
+  // Stub for sound effects (will use actual OGG files when available)
+  try {
+    const audio = new Audio(`./assets/sfx/${type}.ogg`);
+    audio.volume = 0.3;
+    audio.play().catch(() => {
+      // Silently fail if audio not available
+    });
+  } catch (e) {
+    // Silently fail
+  }
+}
+
+function updateMuseumCardPosition() {
+  if (!museumCardInstance || !museumModeActive) return;
+  
+  const scene = document.querySelector('a-scene');
+  const camera = scene?.querySelector('a-camera');
+  const anchor = document.getElementById('bone_anchor_upper_jaw');
+  
+  if (!scene || !camera || !anchor) return;
+  
+  // Get world positions
+  const anchorObj = anchor.object3D;
+  const cameraObj = camera.object3D;
+  
+  // Calculate offset position (0.3m right, 0.2m up, 0.6m toward camera)
+  const offset = new THREE.Vector3(0.3, 0.2, 0.6);
+  const worldPos = new THREE.Vector3();
+  anchorObj.getWorldPosition(worldPos);
+  worldPos.add(offset);
+  
+  // Project to screen space
+  const vector = worldPos.clone();
+  vector.project(cameraObj);
+  
+  const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+  
+  // Update card position
+  museumCardInstance.style.left = `${x}px`;
+  museumCardInstance.style.top = `${y}px`;
+  museumCardInstance.style.transform = `translate(-50%, -50%)`;
+  
+  // Gentle billboarding (slerp quaternion toward camera)
+  const cardQuat = new THREE.Quaternion();
+  const lookAt = new THREE.Vector3();
+  lookAt.subVectors(cameraObj.position, worldPos).normalize();
+  const targetQuat = new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(0, 0, -1),
+    lookAt
+  );
+  cardQuat.slerp(targetQuat, 0.1); // Small factor to avoid sliding
+  
+  // Update leader line
+  updateLeaderLine(anchorObj, museumCardInstance);
+}
+
+function updateLeaderLine(anchorObj, cardEl) {
+  if (!leaderCanvas || !leaderCtx) {
+    leaderCanvas = document.getElementById('mx-leader');
+    if (leaderCanvas) {
+      leaderCanvas.width = window.innerWidth;
+      leaderCanvas.height = window.innerHeight;
+      leaderCtx = leaderCanvas.getContext('2d');
+    } else {
+      return;
+    }
+  }
+  
+  // Resize canvas if needed
+  if (leaderCanvas.width !== window.innerWidth || leaderCanvas.height !== window.innerHeight) {
+    leaderCanvas.width = window.innerWidth;
+    leaderCanvas.height = window.innerHeight;
+  }
+  
+  // Clear canvas
+  leaderCtx.clearRect(0, 0, leaderCanvas.width, leaderCanvas.height);
+  
+  const scene = document.querySelector('a-scene');
+  const camera = scene?.querySelector('a-camera');
+  if (!camera) return;
+  
+  // Get anchor world position
+  const worldPos = new THREE.Vector3();
+  anchorObj.getWorldPosition(worldPos);
+  
+  // Project to screen
+  const vector = worldPos.clone();
+  vector.project(camera.object3D);
+  
+  const anchorX = (vector.x * 0.5 + 0.5) * window.innerWidth;
+  const anchorY = (vector.y * -0.5 + 0.5) * window.innerHeight;
+  
+  // Get card position
+  const cardRect = cardEl.getBoundingClientRect();
+  const cardX = cardRect.left + cardRect.width / 2;
+  const cardY = cardRect.top + cardRect.height / 2;
+  
+  // Draw line
+  leaderCtx.strokeStyle = '#222';
+  leaderCtx.lineWidth = 2;
+  leaderCtx.beginPath();
+  leaderCtx.moveTo(anchorX, anchorY);
+  leaderCtx.lineTo(cardX, cardY);
+  leaderCtx.stroke();
+  
+  // Draw end-dot (6-8px)
+  leaderCtx.fillStyle = '#222';
+  leaderCtx.beginPath();
+  leaderCtx.arc(anchorX, anchorY, 7, 0, Math.PI * 2);
+  leaderCtx.fill();
+}
+
+function startMuseumMode() {
+  if (museumModeActive) return;
+  
+  museumModeActive = true;
+  
+  // Show fossil
+  const fossil = document.getElementById('demo-fossil');
+  if (fossil) {
+    fossil.setAttribute('visible', 'true');
+  }
+  
+  // Create card
+  museumCardInstance = createMuseumCard();
+  
+  // Start update loop
+  const updateLoop = () => {
+    if (museumModeActive && museumCardInstance) {
+      updateMuseumCardPosition();
+      requestAnimationFrame(updateLoop);
+    }
+  };
+  updateLoop();
+  
+  log('museum: mode activated');
+}
+
+function stopMuseumMode() {
+  if (!museumModeActive) return;
+  
+  museumModeActive = false;
+  
+  // Hide fossil
+  const fossil = document.getElementById('demo-fossil');
+  if (fossil) {
+    fossil.setAttribute('visible', 'false');
+  }
+  
+  // Remove card
+  const container = document.getElementById('museum-card-container');
+  if (container) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+  }
+  
+  museumCardInstance = null;
+  clearAllHighlights();
+  
+  // Clear leader canvas
+  if (leaderCtx) {
+    leaderCtx.clearRect(0, 0, leaderCanvas.width, leaderCanvas.height);
+  }
+  
+  log('museum: mode deactivated');
+}
+
+// Add debug toggle for museum mode
+function setupMuseumDebugToggle() {
+  // Add toggle to debug panel
+  const devLog = document.getElementById('dev-log');
+  if (devLog) {
+    const toggle = document.createElement('button');
+    toggle.textContent = '🦴 Museum Demo (Fossil)';
+    toggle.style.cssText = 'margin: 8px 0; padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;';
+    toggle.addEventListener('click', () => {
+      if (museumModeActive) {
+        stopMuseumMode();
+        toggle.textContent = '🦴 Museum Demo (Fossil)';
+      } else {
+        startMuseumMode();
+        toggle.textContent = '❌ Stop Museum Demo';
+      }
+    });
+    
+    // Insert after first log entry or at top
+    if (devLog.firstChild) {
+      devLog.insertBefore(toggle, devLog.firstChild);
+    } else {
+      devLog.appendChild(toggle);
+    }
+  }
+}
+
 // Expose for debugging
 window.SightlineState = state;
 window.SightlineLog = log;
 window.SightlineStopSensors = stopAllSensors;
 window.SightlineSetVH = setVH;
+window.SightlineMuseumMode = { start: startMuseumMode, stop: stopMuseumMode };
 

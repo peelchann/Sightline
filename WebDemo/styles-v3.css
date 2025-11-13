@@ -20,6 +20,20 @@
   --z-hud: 30;
   --z-modal: 40;
   --z-devlog: 50;
+  --z-museum-card: 35;
+  
+  /* Museum Card Tokens */
+  --card-bg: #FAFAFA;
+  --text: #111;
+  --text-sec: #555;
+  --ink: #222;
+  --blue: #0A84FF;
+  --radius: 16px;
+  --shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  --title: 36px;
+  --body: 24px;
+  --chip: 18px;
+  --pill-h: 44px;
 }
 
 html, body {
@@ -696,5 +710,300 @@ body {
   z-index: var(--z-hud);
   pointer-events: none;
   display: none;
+}
+
+/* ===== MUSEUM ANCHOR CARD ===== */
+.mx-card {
+  background: rgba(250, 250, 250, 0.96);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  width: min(520px, 86vw);
+  padding: 12px 14px;
+  backdrop-filter: saturate(1.1) blur(0.5px);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+  position: relative;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  pointer-events: auto;
+  z-index: var(--z-museum-card);
+}
+
+.mx-card.mx-card--visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.mx-card__tile {
+  height: 120px;
+  overflow: hidden;
+  border-radius: 12px;
+  margin: -12px -14px 10px;
+  position: relative;
+  transform: translateZ(0);
+}
+
+.mx-card__tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.mx-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.mx-card__title {
+  font-size: var(--title);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+  margin: 0;
+}
+
+.mx-chip {
+  font-size: var(--chip);
+  color: var(--text-sec);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #EEE;
+  white-space: nowrap;
+}
+
+.mx-card__subtitle {
+  font-size: var(--body);
+  color: var(--text-sec);
+  margin: 0.25rem 0 0.5rem;
+  line-height: 1.25;
+}
+
+.mx-card__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.mx-here {
+  font-size: 18px;
+  color: var(--text-sec);
+  white-space: nowrap;
+}
+
+.mx-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mx-pill {
+  height: var(--pill-h);
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #EEE;
+  color: #222;
+  font-size: 18px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.mx-pill:hover {
+  background: #DDD;
+}
+
+.mx-pill--active {
+  background: var(--blue);
+  color: white;
+}
+
+.mx-pill--active:hover {
+  background: #0066CC;
+}
+
+.mx-more {
+  margin-top: 8px;
+  font-size: 18px;
+  background: transparent;
+  color: var(--blue);
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: left;
+  width: 100%;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.mx-more:hover {
+  opacity: 0.8;
+}
+
+.mx-drawer {
+  margin-top: 8px;
+  border-top: 1px solid #EAEAEA;
+  padding-top: 8px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, padding-top 0.3s ease-out;
+}
+
+.mx-drawer.mx-drawer--open {
+  max-height: 400px;
+  padding-top: 12px;
+}
+
+.mx-drawer__input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mx-voice {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #EEE;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.mx-voice:hover {
+  background: #DDD;
+}
+
+.mx-voice.mx-voice--active {
+  background: var(--blue);
+  color: white;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.mx-query {
+  flex: 1;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #DDD;
+  border-radius: 22px;
+  font-size: 18px;
+  font-family: inherit;
+  color: var(--text);
+  background: white;
+}
+
+.mx-query:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.mx-send {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 22px;
+  background: var(--blue);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.mx-send:hover {
+  background: #0066CC;
+}
+
+.mx-drawer__feed {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.mx-drawer__feed .msg {
+  font-size: 24px;
+  line-height: 1.25;
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: msgAppear 0.3s ease-out forwards;
+}
+
+@keyframes msgAppear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mx-drawer__feed .msg.ai {
+  background: #E8F5E9;
+  color: #0F5132;
+}
+
+.mx-drawer__feed .msg.user {
+  background: #E3F2FD;
+  color: #0D47A1;
+  text-align: right;
+}
+
+/* Leader Line Canvas */
+#mx-leader {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-museum-card);
+}
+
+/* Fossil Highlight Overlay */
+.mx-highlight {
+  position: absolute;
+  border: 2px solid #FFA500;
+  border-radius: 4px;
+  background: rgba(255, 165, 0, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+  z-index: 1000;
+}
+
+.mx-highlight.mx-highlight--active {
+  opacity: 1;
+}
+
+/* Vignette/Backdrop (optional, for readability) */
+.mx-card::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.1) 100%);
+  border-radius: calc(var(--radius) + 20px);
+  pointer-events: none;
+  z-index: -1;
 }
 
