@@ -129,6 +129,42 @@
       ↻ <span id="heading-debug-value">—</span>°
     </div>
     
+    <!-- Debug HUD (Toggleable) -->
+    <div id="debug-hud" class="debug-hud" style="display: none;">
+      <div class="debug-hud__header">
+        <strong>Debug HUD</strong>
+        <button id="debug-hud-toggle" class="debug-hud__close">×</button>
+      </div>
+      <div class="debug-hud__content">
+        <div><strong>GPS:</strong> <span id="debug-gps">—</span></div>
+        <div><strong>Accuracy:</strong> <span id="debug-acc">—</span></div>
+        <div><strong>Heading:</strong> <span id="debug-heading">—</span></div>
+        <div><strong>Nearest POI:</strong> <span id="debug-nearest">—</span></div>
+        <div><strong>Distance:</strong> <span id="debug-dist">—</span></div>
+        <div><strong>Bearing:</strong> <span id="debug-bearing">—</span></div>
+        <div><strong>Bearing Δ:</strong> <span id="debug-bearing-delta">—</span></div>
+        <div><strong>Screen:</strong> <span id="debug-screen">—</span></div>
+        <div><strong>On Screen:</strong> <span id="debug-onscreen">—</span></div>
+        <div><strong>FPS:</strong> <span id="debug-fps">—</span></div>
+      </div>
+    </div>
+    
+    <!-- Sensor Status Chips -->
+    <div id="sensor-chips" class="sensor-chips">
+      <span id="sensor-gps" class="sensor-chip">GPS —</span>
+      <span id="sensor-hdg" class="sensor-chip">hdg —</span>
+      <span id="sensor-fps" class="sensor-chip">fps —</span>
+    </div>
+    
+    <!-- NaN Detection Badge -->
+    <div id="nan-badge" class="nan-badge" style="display: none;">⚠️ NaN DETECTED</div>
+    
+    <!-- Off-Screen Direction Arrow HUD -->
+    <div id="arrowHUD" class="arrowHUD hidden">
+      <div class="needle"></div>
+      <div class="label">—</div>
+    </div>
+    
     <!-- Center Dead Zone (non-blocking) -->
     <div class="center-deadzone"></div>
     
