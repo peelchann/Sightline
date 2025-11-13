@@ -482,6 +482,50 @@ async function enterARScene(useCamera = true) {
 }
 
 // ============================================================================
+// POI SCENE MANAGEMENT
+// ============================================================================
+
+function addPOIsToScene(scene) {
+  if (!POIS || POIS.length === 0) {
+    log('ar-scene: no POIs to add');
+    return;
+  }
+  
+  log(`ar-scene: adding ${POIS.length} POIs...`);
+  
+  POIS.forEach(poi => {
+    const entity = document.createElement('a-entity');
+    entity.setAttribute('gps-entity-place', `latitude: ${poi.lat}; longitude: ${poi.lng}`);
+    entity.setAttribute('data-poi-id', poi.id);
+    
+    // Add text label
+    const text = document.createElement('a-text');
+    text.setAttribute('value', poi.name);
+    text.setAttribute('align', 'center');
+    text.setAttribute('position', '0 2 0');
+    text.setAttribute('scale', '5 5 5');
+    text.setAttribute('color', '#fff');
+    text.setAttribute('background-color', 'rgba(0,0,0,0.7)');
+    entity.appendChild(text);
+    
+    // Add distance text
+    const distText = document.createElement('a-text');
+    distText.setAttribute('value', '');
+    distText.setAttribute('align', 'center');
+    distText.setAttribute('position', '0 1.5 0');
+    distText.setAttribute('scale', '3 3 3');
+    distText.setAttribute('color', '#4ADE80');
+    distText.setAttribute('id', `poi-dist-${poi.id}`);
+    entity.appendChild(distText);
+    
+    scene.appendChild(entity);
+    log(`ar-scene: added POI ${poi.name} at ${poi.lat}, ${poi.lng}`);
+  });
+  
+  log('ar-scene: all POIs added');
+}
+
+// ============================================================================
 // UPDATE LOOPS
 // ============================================================================
 
