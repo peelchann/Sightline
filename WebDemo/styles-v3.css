@@ -1,6 +1,7 @@
 /**
  * Sightline WebAR - V3 Styles
  * Individual Permission Buttons UI
+ * Viewport Hardening: Full-screen, notch-safe, non-blocking overlays
  */
 
 * {
@@ -9,18 +10,44 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #000;
-  color: #fff;
-  overflow: hidden;
+/* ===== VIEWPORT VARIABLES (iOS Safari Toolbar Fix) ===== */
+:root {
+  --vh: 1vh; /* Dynamic viewport height, set by JS */
+  
+  /* Z-Index Layering System */
+  --z-video: 10;
+  --z-ar: 20;
+  --z-hud: 30;
+  --z-modal: 40;
+  --z-devlog: 50;
 }
 
-/* ===== STATE CHIP (Always Visible) ===== */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  touch-action: none;
+  overscroll-behavior: none;
+  /* iOS safe area support */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: #fff;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+/* ===== STATE CHIP (Always Visible, Safe Area Aware) ===== */
 .state-chip {
   position: fixed;
-  top: 10px;
-  left: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: calc(env(safe-area-inset-left, 0px) + 8px);
   background: rgba(0, 0, 0, 0.8);
   color: #fff;
   padding: 8px 16px;
@@ -28,28 +55,71 @@ body {
   font-size: 12px;
   font-weight: 700;
   font-family: monospace;
-  z-index: 10000;
+  z-index: var(--z-hud);
   border: 2px solid #4ADE80;
+  pointer-events: none; /* Non-blocking */
 }
 
-/* ===== DEBUG LOG PANEL (Always Visible) ===== */
+/* ===== DEBUG TOGGLE BUTTON (FAB) ===== */
+.fab-debug {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.8);
+  color: #0f0;
+  border: 2px solid #0f0;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: var(--z-devlog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto; /* Clickable */
+  transition: all 0.2s;
+}
+
+.fab-debug:hover {
+  background: rgba(0, 255, 0, 0.2);
+  transform: scale(1.1);
+}
+
+.fab-debug:active {
+  transform: scale(0.95);
+}
+
+/* ===== DEBUG LOG PANEL (Collapsible Bottom Sheet) ===== */
 .dev-log {
   position: fixed;
-  top: 50px;
-  left: 10px;
-  width: 300px;
-  max-height: 200px;
-  background: rgba(0, 0, 0, 0.9);
-  color: #fff;
-  padding: 10px;
-  border-radius: 8px;
-  font-family: monospace;
-  font-size: 10px;
-  z-index: 10000;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px); /* Above FAB */
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  max-height: 40vh;
+  background: rgba(0, 0, 0, 0.85);
+  color: #0f0;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  z-index: var(--z-devlog);
   overflow-y: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
-  border: 1px solid #333;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  pointer-events: auto; /* Scrollable when visible */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Compact mode for small phones */
+@media (max-width: 480px) {
+  .dev-log {
+    max-height: 28vh;
+    font-size: 10px;
+  }
 }
 
 /* ===== START SCREEN ===== */
@@ -264,19 +334,18 @@ body {
   text-decoration: underline;
 }
 
-/* Modal */
+/* Modal (Safe Area Aware) */
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  width: 100vw;
+  height: calc(var(--vh, 1vh) * 100);
   background: rgba(0, 0, 0, 0.7);
-  z-index: 10001;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) calc(env(safe-area-inset-right, 0px) + 20px) calc(env(safe-area-inset-bottom, 0px) + 20px) calc(env(safe-area-inset-left, 0px) + 20px);
 }
 
 .modal-content {
@@ -331,66 +400,82 @@ body {
   margin-bottom: 12px;
 }
 
-/* ===== AR SCREEN ===== */
+/* ===== AR SCREEN (Full-Screen, Notch-Safe) ===== */
 #ar-screen {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  width: 100vw;
+  height: calc(var(--vh, 1vh) * 100);
   display: none;
+  background: #000;
 }
 
+/* Camera Video Element */
+#camera {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: calc(var(--vh, 1vh) * 100);
+  object-fit: cover;
+  transform: translateZ(0); /* Promote to GPU layer */
+  z-index: var(--z-video);
+}
+
+/* A-Frame Scene Container */
 #ar-scene {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  z-index: 0 !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: calc(var(--vh, 1vh) * 100) !important;
+  z-index: var(--z-ar) !important;
 }
 
+/* A-Frame Canvas & Video */
 #ar-scene canvas,
+#ar-scene canvas.webgl,
 #ar-scene video {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: calc(var(--vh, 1vh) * 100) !important;
   object-fit: cover !important;
+  transform: translateZ(0) !important; /* GPU acceleration */
 }
 
-/* IMU HUD */
+/* IMU HUD (Non-Blocking, Safe Area Aware) */
 #imu-hud {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: calc(env(safe-area-inset-left, 0px) + 8px);
   background: rgba(0, 0, 0, 0.8);
   color: #fff;
   padding: 12px 16px;
   border-radius: 8px;
   font-family: monospace;
   font-size: 12px;
-  z-index: 100;
+  z-index: var(--z-hud);
   line-height: 1.6;
+  pointer-events: none; /* Non-blocking */
+  max-width: 200px; /* Never full-width */
 }
 
 #imu-hud strong {
   color: #4ADE80;
 }
 
-/* Mode Badge */
+/* Mode Badge (Safe Area Aware) */
 .mode-badge {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
   background: rgba(255, 193, 7, 0.9);
   color: #000;
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 700;
-  z-index: 100;
+  z-index: var(--z-hud);
+  pointer-events: none; /* Non-blocking */
 }
 
 .mode-badge.live {

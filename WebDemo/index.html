@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Sightline WebAR - Individual Permissions</title>
   <meta name="description" content="Discover Hong Kong landmarks through augmented reality">
   
@@ -17,8 +17,11 @@
   <!-- State Chip (Always Visible) -->
   <div id="state-chip" class="state-chip">INIT</div>
 
-  <!-- Debug Log Panel (Always Visible) -->
-  <div id="dev-log" class="dev-log"></div>
+  <!-- Debug Toggle Button -->
+  <button id="toggle-debug" class="fab-debug" aria-label="Toggle Debug Panel">?</button>
+
+  <!-- Debug Log Panel (Collapsible, Hidden by Default) -->
+  <aside id="dev-log" class="dev-log" hidden></aside>
 
   <!-- START SCREEN -->
   <div id="start-screen">
