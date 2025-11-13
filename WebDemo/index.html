@@ -3,324 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Sightline WebAR - Unified Permissions</title>
+  <title>Sightline WebAR - Individual Permissions</title>
   <meta name="description" content="Discover Hong Kong landmarks through augmented reality">
   
   <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: #000;
-      color: #fff;
-      overflow: hidden;
-    }
-    
-    /* ===== START SCREEN ===== */
-    #start-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 20px;
-    }
-    
-    .start-card {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 20px;
-      padding: 32px;
-      max-width: 400px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-    
-    .start-card h1 {
-      color: #111;
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      text-align: center;
-    }
-    
-    .start-card p {
-      color: #555;
-      font-size: 16px;
-      line-height: 1.6;
-      margin-bottom: 24px;
-      text-align: center;
-    }
-    
-    /* State Banner */
-    .state-banner {
-      background: #f0f0f0;
-      color: #666;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 24px;
-      font-family: monospace;
-    }
-    
-    .state-banner.requesting {
-      background: #FFF3CD;
-      color: #856404;
-    }
-    
-    .state-banner.success {
-      background: #D4EDDA;
-      color: #155724;
-    }
-    
-    .state-banner.error {
-      background: #F8D7DA;
-      color: #721C24;
-    }
-    
-    /* Permission Checklist */
-    .permit-list {
-      list-style: none;
-      margin-bottom: 24px;
-    }
-    
-    .permit-item {
-      display: flex;
-      align-items: center;
-      padding: 12px;
-      background: #f8f8f8;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      transition: all 0.3s;
-    }
-    
-    .permit-item.requesting {
-      background: #FFF3CD;
-    }
-    
-    .permit-item.ok {
-      background: #D4EDDA;
-    }
-    
-    .permit-item.error {
-      background: #F8D7DA;
-    }
-    
-    .permit-icon {
-      font-size: 20px;
-      margin-right: 12px;
-      min-width: 24px;
-    }
-    
-    .permit-label {
-      flex: 1;
-      color: #333;
-      font-weight: 500;
-    }
-    
-    .permit-desc {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
-    }
-    
-    /* Buttons */
-    .btn {
-      width: 100%;
-      padding: 16px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 12px;
-    }
-    
-    .btn:active {
-      transform: scale(0.98);
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-    }
-    
-    .btn-primary:hover {
-      opacity: 0.9;
-    }
-    
-    .btn-secondary {
-      background: #f0f0f0;
-      color: #333;
-    }
-    
-    .btn-secondary:hover {
-      background: #e0e0e0;
-    }
-    
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    /* Error Message */
-    #error-message {
-      background: #F8D7DA;
-      color: #721C24;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      font-size: 14px;
-      display: none;
-    }
-    
-    /* ===== AR SCREEN ===== */
-    #ar-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: none;
-    }
-    
-    /* A-Frame Scene */
-    #ar-scene {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      z-index: 0 !important;
-    }
-    
-    #ar-scene canvas,
-    #ar-scene video {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-    }
-    
-    /* IMU HUD */
-    #imu-hud {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 12px;
-      z-index: 100;
-      line-height: 1.6;
-    }
-    
-    #imu-hud strong {
-      color: #4ADE80;
-    }
-    
-    /* Mode Badge */
-    .mode-badge {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(255, 193, 7, 0.9);
-      color: #000;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      z-index: 100;
-    }
-    
-    .mode-badge.live {
-      background: rgba(76, 175, 80, 0.9);
-      color: #fff;
-    }
-  </style>
+  <link rel="stylesheet" href="styles-v3.css">
 </head>
 <body>
+
+  <!-- State Chip (Always Visible) -->
+  <div id="state-chip" class="state-chip">INIT</div>
+
+  <!-- Debug Log Panel (Always Visible) -->
+  <div id="dev-log" class="dev-log"></div>
 
   <!-- START SCREEN -->
   <div id="start-screen">
     <div class="start-card">
       <h1>🎯 Sightline WebAR</h1>
-      <p>Discover Hong Kong landmarks through augmented reality. We need access to your camera, location, and motion sensors.</p>
+      <p class="subtitle">Enable permissions individually, then start AR or try Demo Mode.</p>
       
-      <!-- State Banner -->
-      <div id="state-banner" class="state-banner">INIT</div>
-      
-      <!-- Error Message -->
-      <div id="error-message"></div>
-      
-      <!-- Permission Checklist -->
-      <ul class="permit-list">
-        <li class="permit-item" data-permit="camera">
-          <span class="permit-icon">⭕</span>
-          <div>
-            <div class="permit-label">Camera</div>
-            <div class="permit-desc">To see the real world</div>
+      <!-- Permission Buttons -->
+      <div class="permission-section">
+        <div class="permission-row">
+          <div class="permission-info">
+            <span class="permission-icon">📷</span>
+            <div>
+              <div class="permission-label">Camera</div>
+              <div class="permission-desc">To see the real world</div>
+            </div>
           </div>
-        </li>
-        <li class="permit-item" data-permit="location">
-          <span class="permit-icon">⭕</span>
-          <div>
-            <div class="permit-label">Location (GPS)</div>
-            <div class="permit-desc">To find nearby landmarks</div>
+          <div class="permission-controls">
+            <span id="stat-camera" class="status-pill">🔴</span>
+            <button id="btn-perm-camera" class="btn-perm">Enable Camera</button>
           </div>
-        </li>
-        <li class="permit-item" data-permit="motion">
-          <span class="permit-icon">⭕</span>
-          <div>
-            <div class="permit-label">Motion & Orientation</div>
-            <div class="permit-desc">To track where you're looking</div>
+        </div>
+
+        <div class="permission-row">
+          <div class="permission-info">
+            <span class="permission-icon">📍</span>
+            <div>
+              <div class="permission-label">Location (GPS)</div>
+              <div class="permission-desc">To find nearby landmarks</div>
+            </div>
           </div>
-        </li>
-      </ul>
-      
+          <div class="permission-controls">
+            <span id="stat-geo" class="status-pill">🔴</span>
+            <button id="btn-perm-geo" class="btn-perm">Enable Location</button>
+          </div>
+        </div>
+
+        <div class="permission-row">
+          <div class="permission-info">
+            <span class="permission-icon">🧭</span>
+            <div>
+              <div class="permission-label">Motion & Orientation</div>
+              <div class="permission-desc">To track where you're looking</div>
+            </div>
+          </div>
+          <div class="permission-controls">
+            <span id="stat-imu" class="status-pill">🔴</span>
+            <button id="btn-perm-imu" class="btn-perm">Enable Motion</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Action Buttons -->
-      <button id="cta-enable" class="btn btn-primary" onclick="window.handleEnableClick(event)">
-        Enable Camera, Location & Motion
-      </button>
-      
-      <button id="cta-demo" class="btn btn-secondary" onclick="window.handleDemoClick(event)">
-        Continue in Demo Mode (No Sensors)
-      </button>
-      
-      <button id="cta-retry" class="btn btn-secondary" style="display: none;" onclick="window.handleRetryClick(event)">
-        🔄 Retry Permissions
-      </button>
-      
-      <!-- Debug Link -->
-      <div style="text-align: center; margin-top: 16px;">
-        <a href="debug-permissions.html" target="_blank" style="color: #667eea; text-decoration: none; font-size: 14px;">
-          🔍 Check Permission Status (Debug)
-        </a>
+      <div class="action-section">
+        <button id="btn-start-ar" class="btn btn-primary" disabled>
+          🚀 Start AR
+        </button>
+        <button id="btn-start-demo" class="btn btn-secondary">
+          🎮 Start Demo Mode (No Sensors)
+        </button>
+      </div>
+
+      <!-- iOS Help Link (shown when permission denied) -->
+      <div id="ios-help" class="ios-help" style="display: none;">
+        <a href="#" id="ios-help-link">📱 How to enable permissions on iOS</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Help Modal -->
+  <div id="ios-help-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>📱 Enable Permissions on iOS</h2>
+      <button class="modal-close" onclick="document.getElementById('ios-help-modal').style.display='none'">×</button>
+      <div class="modal-body">
+        <h3>Motion & Orientation:</h3>
+        <p>Settings → Safari → Motion & Orientation Access → ON</p>
+        
+        <h3>Location:</h3>
+        <p>Settings → Privacy & Security → Location Services → Safari Websites → While Using the App (+ Precise)</p>
+        
+        <h3>Camera:</h3>
+        <p>In Safari: Tap (aA) → Website Settings → Camera → Allow</p>
       </div>
     </div>
   </div>
 
   <!-- AR SCREEN -->
-  <div id="ar-screen">
+  <div id="ar-screen" style="display: none;">
+    <!-- Video Element for Camera -->
+    <video id="camera" playsinline muted autoplay style="display: none;"></video>
+    
     <!-- Mode Badge -->
     <div id="mode-badge" class="mode-badge live">LIVE AR</div>
     
@@ -356,120 +146,6 @@
   </div>
 
   <!-- App Script -->
-  <!-- Define handlers IMMEDIATELY so onclick attributes work -->
-  <script>
-    // CRITICAL: Define handlers that work IMMEDIATELY, even before app-unified.js loads
-    // These will be replaced by full handlers when app-unified.js loads
-    
-    window.handleEnableClick = async function(e) {
-      console.log('[INLINE] Enable button clicked!');
-      
-      // Wait for app-unified.js to load (max 5 seconds)
-      let attempts = 0;
-      while (!window.Permissions && attempts < 50) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-      
-      if (window.Permissions && window.Permissions.requestAll) {
-        console.log('[INLINE] App loaded, calling full handler');
-        if (window.handleEnableClickFull) {
-          return window.handleEnableClickFull(e);
-        }
-        // Fallback: call directly
-        return handleEnableClickDirect(e);
-      } else {
-        alert('App is still loading. Please wait a moment and try again.');
-        console.error('[INLINE] App not loaded after 5 seconds');
-      }
-    };
-    
-    // Direct handler if full handler not available
-    async function handleEnableClickDirect(e) {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      
-      console.log('[INLINE] Direct handler called');
-      const btn = document.getElementById('cta-enable');
-      if (btn) btn.disabled = true;
-      
-      // Show loading state
-      const stateBanner = document.getElementById('state-banner');
-      if (stateBanner) {
-        stateBanner.textContent = 'REQUESTING_PERMS — Requesting Camera, Location, Motion...';
-        stateBanner.className = 'state-banner requesting';
-      }
-      
-      // Request permissions directly
-      try {
-        console.log('[INLINE] Requesting permissions...');
-        const results = await window.Permissions.requestAll();
-        console.log('[INLINE] Permission results:', results);
-        
-        // Check results
-        const allOk = results.camera.ok && results.location.ok && results.motion.ok;
-        if (allOk) {
-          console.log('[INLINE] All permissions granted!');
-          if (stateBanner) {
-            stateBanner.textContent = 'READY — Initializing AR...';
-          }
-          // Initialize app
-          if (window.SightlineApp) {
-            const app = new window.SightlineApp();
-            window.APP = app;
-            await app.init(results);
-            if (stateBanner) {
-              stateBanner.textContent = 'RUNNING — Live AR Mode';
-              stateBanner.className = 'state-banner success';
-            }
-            // Hide start screen, show AR screen
-            const startScreen = document.getElementById('start-screen');
-            const arScreen = document.getElementById('ar-screen');
-            if (startScreen) startScreen.style.display = 'none';
-            if (arScreen) arScreen.style.display = 'block';
-          }
-        } else {
-          console.error('[INLINE] Not all permissions granted:', results);
-          if (stateBanner) {
-            stateBanner.textContent = 'ERROR — Some permissions denied';
-            stateBanner.className = 'state-banner error';
-          }
-          if (btn) btn.disabled = false;
-        }
-      } catch (error) {
-        console.error('[INLINE] Error:', error);
-        if (stateBanner) {
-          stateBanner.textContent = 'ERROR — ' + error.message;
-          stateBanner.className = 'state-banner error';
-        }
-        if (btn) btn.disabled = false;
-      }
-    }
-    
-    window.handleDemoClick = function(e) {
-      console.log('[INLINE] Demo button clicked!');
-      if (window.handleDemoClickFull) {
-        return window.handleDemoClickFull(e);
-      }
-      // Fallback demo mode
-      const startScreen = document.getElementById('start-screen');
-      const arScreen = document.getElementById('ar-screen');
-      if (startScreen) startScreen.style.display = 'none';
-      if (arScreen) arScreen.style.display = 'block';
-    };
-    
-    window.handleRetryClick = function(e) {
-      console.log('[INLINE] Retry button clicked!');
-      if (window.handleRetryClickFull) {
-        return window.handleRetryClickFull(e);
-      }
-      // Fallback: reload page
-      window.location.reload();
-    };
-  </script>
-  <script src="app-unified.js"></script>
+  <script src="app-v3.js"></script>
 </body>
 </html>
-
