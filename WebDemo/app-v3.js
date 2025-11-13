@@ -452,6 +452,12 @@ async function enterARScene(useCamera = true) {
   
   log('ar-scene: scene loaded');
   
+  // Ensure viewport is updated
+  setVH();
+  
+  // Resize renderer to match viewport
+  resizeRenderTarget();
+  
   if (useCamera && state.camera.stream) {
     // Attach camera stream to AR.js video
     const video = scene.querySelector('video');
@@ -462,10 +468,17 @@ async function enterARScene(useCamera = true) {
     }
   }
   
+  // Add POIs to scene
+  addPOIsToScene(scene);
+  
   // Start update loop
   startUpdateLoop();
   
-  log('ar-scene: ready');
+  // Log rects after scene is ready
+  setTimeout(() => {
+    logRects();
+    log('ar-scene: ready');
+  }, 100);
 }
 
 // ============================================================================
@@ -601,6 +614,121 @@ function setupIOSHelp() {
 }
 
 // ============================================================================
+// VIEWPORT MANAGEMENT (iOS Safari Toolbar Fix)
+// ============================================================================
+
+function setVH() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+  log(`viewport: --vh=${vh.toFixed(2)}px (window.innerHeight=${window.innerHeight})`);
+}
+
+// Update on resize and orientation change
+window.addEventListener('resize', setVH);
+window.addEventListener('orientationchange', () => {
+  setTimeout(setVH, 100); // Delay for iOS orientation animation
+});
+window.addEventListener('visualViewport', setVH); // iOS Safari address bar
+
+// ============================================================================
+// DEBUG PANEL TOGGLE
+// ============================================================================
+
+function setupDebugToggle() {
+  const toggleBtn = document.getElementById('toggle-debug');
+  const logPanel = document.getElementById('dev-log');
+  
+  if (!toggleBtn || !logPanel) {
+    console.warn('[Viewport] Debug toggle elements not found');
+    return;
+  }
+  
+  // Restore state from localStorage
+  const wasVisible = localStorage.getItem('sightline-debug-visible') === 'true';
+  if (wasVisible) {
+    logPanel.hidden = false;
+  }
+  
+  toggleBtn.addEventListener('click', () => {
+    logPanel.hidden = !logPanel.hidden;
+    localStorage.setItem('sightline-debug-visible', !logPanel.hidden);
+    log(`debug: panel ${logPanel.hidden ? 'hidden' : 'visible'}`);
+  });
+  
+  log('debug: toggle button initialized');
+}
+
+// ============================================================================
+// RENDERER RESIZE HANDLING
+// ============================================================================
+
+function resizeRenderTarget() {
+  const scene = document.querySelector('a-scene');
+  if (!scene || !scene.hasLoaded) return;
+  
+  const renderer = scene.renderer;
+  const camera = scene.camera;
+  
+  if (renderer) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    log(`renderer: resized to ${w}x${h}`);
+  }
+  
+  if (camera) {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+  }
+}
+
+// ============================================================================
+// DIAGNOSTICS
+// ============================================================================
+
+function logRects() {
+  const selectors = ['#camera', '.a-canvas', 'canvas.webgl', '#imu-hud', '#dev-log', '#state-chip', '.mode-badge'];
+  const results = [];
+  
+  selectors.forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const styles = window.getComputedStyle(el);
+      results.push({
+        selector: sel,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        top: Math.round(rect.top),
+        left: Math.round(rect.left),
+        zIndex: styles.zIndex,
+        display: styles.display,
+        visibility: styles.visibility
+      });
+    }
+  });
+  
+  console.table(results);
+  log(`diagnostics: rects logged (window: ${window.innerWidth}x${window.innerHeight})`);
+  
+  return results;
+}
+
+// Debug outline toggle
+window.__dbgOutline = function(on = true) {
+  const selectors = ['#camera', '.a-canvas', 'canvas.webgl', '#imu-hud', '#dev-log', '#state-chip', '.mode-badge'];
+  selectors.forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+      el.style.outline = on ? '2px solid rgba(0,255,255,0.6)' : 'none';
+    });
+  });
+  log(`diagnostics: outline ${on ? 'ON' : 'OFF'}`);
+};
+
+// Expose diagnostics
+window.__dbgLogRects = logRects;
+
+// ============================================================================
 // INITIALIZATION
 // ============================================================================
 
@@ -609,21 +737,37 @@ window.addEventListener('DOMContentLoaded', () => {
   log(`boot: secure=${window.isSecureContext}`);
   log(`boot: ts=${Date.now()}`);
   
+  // Set initial viewport height
+  setVH();
+  
   setChip('INIT');
   
   // Setup all handlers
   setupPermissionHandlers();
   setupActionHandlers();
   setupIOSHelp();
+  setupDebugToggle();
+  
+  // Setup resize handlers
+  window.addEventListener('resize', () => {
+    setVH();
+    resizeRenderTarget();
+    logRects();
+  });
   
   // Check initial permission states
   maybeEnableStartAR();
   
-  log('boot: ready');
+  // Log initial rects after a short delay
+  setTimeout(() => {
+    logRects();
+    log('boot: ready');
+  }, 500);
 });
 
 // Expose for debugging
 window.SightlineState = state;
 window.SightlineLog = log;
 window.SightlineStopSensors = stopAllSensors;
+window.SightlineSetVH = setVH;
 
