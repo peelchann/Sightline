@@ -1007,3 +1007,15 @@ body {
   z-index: -1;
 }
 
+/* Museum Card Container */
+.museum-card-container {
+  position: fixed;
+  pointer-events: none;
+  z-index: var(--z-museum-card);
+}
+
+.museum-card-container .mx-card {
+  position: absolute;
+  pointer-events: auto;
+}
+
