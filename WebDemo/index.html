@@ -141,6 +141,12 @@
     <!-- Temporary Demo Card (while waiting for GPS) -->
     <div id="temp-demo-card" class="temp-demo-card" style="display: none;"></div>
     
+    <!-- Museum Card Container (World-Anchored) -->
+    <div id="museum-card-container" class="museum-card-container" style="display: none;"></div>
+    
+    <!-- Leader Line Canvas -->
+    <canvas id="mx-leader"></canvas>
+    
     <!-- A-Frame AR Scene -->
     <a-scene
       id="ar-scene"
@@ -160,6 +166,37 @@
     >
       <!-- Camera -->
       <a-camera gps-camera rotation-reader></a-camera>
+      
+      <!-- Demo Fossil Entity (Museum Mode) -->
+      <a-entity id="demo-fossil" visible="false">
+        <!-- Placeholder fossil (simple box for demo) -->
+        <a-box 
+          id="fossil-skull"
+          position="0 0 -2"
+          width="0.8"
+          height="0.6"
+          depth="0.5"
+          color="#D4A574"
+          material="opacity: 0.8"
+        ></a-box>
+        
+        <!-- Bone anchor points -->
+        <a-entity 
+          id="bone_anchor_upper_jaw"
+          position="0 0.1 -1.75"
+          visible="false"
+        ></a-entity>
+        <a-entity 
+          id="bone_anchor_teeth"
+          position="0 -0.1 -1.75"
+          visible="false"
+        ></a-entity>
+        <a-entity 
+          id="bone_anchor_skull"
+          position="0 0.2 -1.75"
+          visible="false"
+        ></a-entity>
+      </a-entity>
       
       <!-- POIs will be added dynamically by app.js -->
     </a-scene>
