@@ -6,6 +6,131 @@
  */
 
 // ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const R_IN_RANGE = 600;   // meters: place anchored card
+const R_VIS = 1500;       // meters: show off-axis arrow/label
+const R_NEAREST = 5000;   // meters: nearest fallback arrow
+
+// ============================================================================
+// POI DATA
+// ============================================================================
+
+const POIS = [
+  // Original POIs
+  {
+    id: 'clock-tower',
+    name: 'Clock Tower',
+    lat: 22.2946,
+    lng: 114.1699,
+    year: 1915,
+    description: 'Former railway terminus',
+    category: 'landmark',
+    range: 'mid',
+    color: '#3B82F6'
+  },
+  {
+    id: 'star-ferry-tst',
+    name: 'Star Ferry (TST)',
+    lat: 22.2937,
+    lng: 114.1703,
+    year: 1888,
+    description: 'Iconic ferry service',
+    category: 'transport',
+    range: 'mid',
+    color: '#22C55E'
+  },
+  {
+    id: 'ifc',
+    name: 'IFC Tower',
+    lat: 22.2855,
+    lng: 114.1588,
+    year: 2003,
+    description: 'International Finance Centre • 412m',
+    category: 'landmark',
+    range: 'far',
+    elevation: 412,
+    color: '#3B82F6'
+  },
+  {
+    id: 'icc',
+    name: 'ICC',
+    lat: 22.3069,
+    lng: 114.1617,
+    year: 2010,
+    description: 'Intl Commerce Centre • 484m',
+    category: 'landmark',
+    range: 'far',
+    elevation: 484,
+    color: '#3B82F6'
+  },
+  {
+    id: 'mplus',
+    name: 'M+ Museum',
+    lat: 22.3030,
+    lng: 114.1590,
+    year: 2021,
+    description: 'Visual culture museum',
+    category: 'museum',
+    range: 'mid',
+    color: '#A855F7'
+  },
+  {
+    id: 'palace-museum',
+    name: 'Hong Kong Palace Museum',
+    lat: 22.3016,
+    lng: 114.1600,
+    year: 2022,
+    description: 'Chinese art & culture',
+    category: 'museum',
+    range: 'mid',
+    color: '#A855F7'
+  },
+  // Wong Chuk Hang POIs
+  {
+    id: 'ocean_park_main_entrance',
+    name: 'Ocean Park Hong Kong (Main Entrance)',
+    year: 1977,
+    lat: 22.2476,
+    lng: 114.1733,
+    description: 'Hong Kong\'s classic marine-themed park linking The Waterfront & The Summit.',
+    category: 'landmark',
+    color: '#0EA5E9'
+  },
+  {
+    id: 'wong_chuk_hang_mtr',
+    name: 'Wong Chuk Hang MTR (Exit B)',
+    year: 2016,
+    lat: 22.2472,
+    lng: 114.1739,
+    description: 'South Island Line station serving the revitalized industrial district.',
+    category: 'transport',
+    color: '#22C55E'
+  },
+  {
+    id: 'aberdeen_promenade',
+    name: 'Aberdeen Promenade',
+    year: 1990,
+    lat: 22.2489,
+    lng: 114.1579,
+    description: 'Waterfront walkway facing the typhoon shelter and floating village.',
+    category: 'waterfront',
+    color: '#A855F7'
+  },
+  {
+    id: 'the_southside_mall',
+    name: 'THE SOUTHSIDE',
+    year: 2023,
+    lat: 22.2459,
+    lng: 114.1698,
+    description: 'Transit-oriented mall above Wong Chuk Hang station.',
+    category: 'retail',
+    color: '#F59E0B'
+  }
+];
+
+// ============================================================================
 // STATE MANAGEMENT
 // ============================================================================
 
@@ -13,7 +138,9 @@ const state = {
   camera: { granted: false, stream: null },
   geo: { granted: false, watchId: null, last: null },
   imu: { granted: false, active: false, headingDeg: null },
-  mode: 'INIT' // INIT | START | AR | DEMO | ERROR
+  mode: 'INIT', // INIT | START | AR | DEMO | ERROR
+  poiClassifications: new Map(), // POI ID -> { type: 'IN_RANGE' | 'VISIBLE' | 'NEAREST', distance, bearing }
+  nearestPOI: null
 };
 
 // ============================================================================
@@ -151,7 +278,7 @@ function setupPermissionHandlers() {
   const opts = {
     enableHighAccuracy: true,
     maximumAge: 0,
-    timeout: 20000
+    timeout: 10000 // 10 seconds
   };
   
   let gotFirst = false;
@@ -169,11 +296,26 @@ function setupPermissionHandlers() {
       setStat('stat-geo', '🟢');
       log(`geo: granted lat=${lat} lng=${lng} acc=±${acc}m`);
       
+      // Check accuracy - show hint if > 80m
+      if (pos.coords.accuracy > 80) {
+        log(`geo: accuracy low (${acc}m), showing reacquiring hint`);
+        showAccuracyHint(true);
+      } else {
+        showAccuracyHint(false);
+      }
+      
       // Start watch after first fix
       state.geo.watchId = navigator.geolocation.watchPosition(
         (p) => {
           state.geo.last = p;
           updateHUDGeo(p);
+          
+          // Update accuracy hint
+          if (p.coords.accuracy > 80) {
+            showAccuracyHint(true);
+          } else {
+            showAccuracyHint(false);
+          }
         },
         (err) => {
           log(`geo: watch error ${err.code} ${err.message}`);
@@ -377,6 +519,79 @@ function setupActionHandlers() {
   state.mode = 'DEMO';
   setChip('DEMO');
   
+  // Show preset selector
+  showPresetSelector();
+  });
+  
+  log('action-handlers: all handlers attached');
+}
+
+const PRESETS = [
+  {
+    id: 'west-kowloon',
+    name: 'West Kowloon Freespace',
+    lat: 22.3045,
+    lng: 114.1595,
+    headingDeg: 120,
+    description: 'Facing Victoria Harbour skyline'
+  },
+  {
+    id: 'wong-chuk-hang',
+    name: 'Wong Chuk Hang MTR',
+    lat: 22.2472,
+    lng: 114.1739,
+    headingDeg: 0,
+    description: 'South Island Line station'
+  },
+  {
+    id: 'ocean-park',
+    name: 'Ocean Park Entrance',
+    lat: 22.2476,
+    lng: 114.1733,
+    headingDeg: 45,
+    description: 'Main entrance area'
+  }
+];
+
+function showPresetSelector() {
+  let modal = document.getElementById('preset-selector-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'preset-selector-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h2>Choose Demo Location</h2>
+        <button class="modal-close" onclick="document.getElementById('preset-selector-modal').style.display='none'">×</button>
+        <div class="preset-list">
+          ${PRESETS.map(preset => `
+            <button class="preset-btn" data-preset-id="${preset.id}">
+              <div class="preset-name">${preset.name}</div>
+              <div class="preset-desc">${preset.description}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Add click handlers
+    modal.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const presetId = e.currentTarget.getAttribute('data-preset-id');
+        const preset = PRESETS.find(p => p.id === presetId);
+        if (preset) {
+          modal.style.display = 'none';
+          initDemoRuntime(preset);
+        }
+      });
+    });
+  }
+  
+  modal.style.display = 'flex';
+}
+
+function initDemoRuntime(preset) {
   // Hide start screen, show AR screen
   const startScreen = document.getElementById('start-screen');
   const arScreen = document.getElementById('ar-screen');
@@ -384,21 +599,6 @@ function setupActionHandlers() {
   if (startScreen) startScreen.style.display = 'none';
   if (arScreen) arScreen.style.display = 'block';
   
-  // Get preset (West Kowloon Freespace)
-  const preset = {
-    lat: 22.3045,
-    lng: 114.1595,
-    headingDeg: 120 // Facing Victoria Harbour
-  };
-  
-  initDemoRuntime(preset);
-  log('demo: initialized with preset location');
-  });
-  
-  log('action-handlers: all handlers attached');
-}
-
-function initDemoRuntime(preset) {
   // Set synthetic GPS
   state.geo.granted = true;
   state.geo.last = {
@@ -494,31 +694,88 @@ function addPOIsToScene(scene) {
   log(`ar-scene: adding ${POIS.length} POIs...`);
   
   POIS.forEach(poi => {
-    const entity = document.createElement('a-entity');
-    entity.setAttribute('gps-entity-place', `latitude: ${poi.lat}; longitude: ${poi.lng}`);
-    entity.setAttribute('data-poi-id', poi.id);
+    // Create container entity
+    const container = document.createElement('a-entity');
+    container.setAttribute('gps-entity-place', `latitude: ${poi.lat}; longitude: ${poi.lng}`);
+    container.setAttribute('data-poi-id', poi.id);
+    container.setAttribute('visible', false); // Hidden until in range
     
-    // Add text label
-    const text = document.createElement('a-text');
-    text.setAttribute('value', poi.name);
-    text.setAttribute('align', 'center');
-    text.setAttribute('position', '0 2 0');
-    text.setAttribute('scale', '5 5 5');
-    text.setAttribute('color', '#fff');
-    text.setAttribute('background-color', 'rgba(0,0,0,0.7)');
-    entity.appendChild(text);
+    // Leader line to ground
+    const leader = document.createElement('a-box');
+    leader.setAttribute('position', '0 0 0');
+    leader.setAttribute('width', '0.02');
+    leader.setAttribute('height', '2');
+    leader.setAttribute('depth', '0.02');
+    leader.setAttribute('color', '#222');
+    leader.setAttribute('opacity', '0.6');
+    leader.setAttribute('class', 'leader');
+    container.appendChild(leader);
     
-    // Add distance text
+    // AR Card (billboard to camera)
+    const card = document.createElement('a-entity');
+    card.setAttribute('position', '0 1.2 0');
+    card.setAttribute('look-at', '[camera]');
+    card.setAttribute('scale', '1 1 1');
+    
+    // Card background
+    const cardBg = document.createElement('a-plane');
+    cardBg.setAttribute('width', '2.6');
+    cardBg.setAttribute('height', '1.2');
+    cardBg.setAttribute('color', '#FAFAFA');
+    cardBg.setAttribute('opacity', '0.95');
+    cardBg.setAttribute('position', '0 0 0');
+    card.appendChild(cardBg);
+    
+    // Title
+    const title = document.createElement('a-text');
+    title.setAttribute('value', poi.name);
+    title.setAttribute('align', 'left');
+    title.setAttribute('position', '-1.2 0.4 0.01');
+    title.setAttribute('scale', '0.18 0.18 0.18');
+    title.setAttribute('color', '#111');
+    title.setAttribute('font', 'roboto');
+    title.setAttribute('width', '5');
+    title.setAttribute('class', 'ar-card-title');
+    card.appendChild(title);
+    
+    // Year badge
+    if (poi.year) {
+      const badge = document.createElement('a-text');
+      badge.setAttribute('value', poi.year.toString());
+      badge.setAttribute('align', 'center');
+      badge.setAttribute('position', '1.1 0.4 0.01');
+      badge.setAttribute('scale', '0.12 0.12 0.12');
+      badge.setAttribute('color', '#666');
+      badge.setAttribute('background-color', 'rgba(0,0,0,0.06)');
+      badge.setAttribute('class', 'ar-card-badge');
+      card.appendChild(badge);
+    }
+    
+    // Description
+    const desc = document.createElement('a-text');
+    desc.setAttribute('value', poi.description || '');
+    desc.setAttribute('align', 'left');
+    desc.setAttribute('position', '-1.2 0 0.01');
+    desc.setAttribute('scale', '0.14 0.14 0.14');
+    desc.setAttribute('color', '#333');
+    desc.setAttribute('width', '5');
+    desc.setAttribute('wrap-count', '20');
+    desc.setAttribute('class', 'ar-card-blurb');
+    card.appendChild(desc);
+    
+    // Distance
     const distText = document.createElement('a-text');
     distText.setAttribute('value', '');
-    distText.setAttribute('align', 'center');
-    distText.setAttribute('position', '0 1.5 0');
-    distText.setAttribute('scale', '3 3 3');
-    distText.setAttribute('color', '#4ADE80');
+    distText.setAttribute('align', 'right');
+    distText.setAttribute('position', '1.1 -0.3 0.01');
+    distText.setAttribute('scale', '0.15 0.15 0.15');
+    distText.setAttribute('color', poi.color || '#0EA5E9');
     distText.setAttribute('id', `poi-dist-${poi.id}`);
-    entity.appendChild(distText);
+    distText.setAttribute('class', 'ar-card-distance');
+    card.appendChild(distText);
     
-    scene.appendChild(entity);
+    container.appendChild(card);
+    scene.appendChild(container);
     log(`ar-scene: added POI ${poi.name} at ${poi.lat}, ${poi.lng}`);
   });
   
@@ -532,10 +789,70 @@ function addPOIsToScene(scene) {
 function startUpdateLoop() {
   const update = () => {
     updateHUD();
+    classifyPOIs();
     updatePOIDistances();
+    updatePOIRendering();
     requestAnimationFrame(update);
   };
   update();
+}
+
+function classifyPOIs() {
+  if (!state.geo.last) {
+    // Show temporary demo card if GPS not ready
+    showTemporaryDemoCard();
+    return;
+  }
+  
+  const userLat = state.geo.last.coords.latitude;
+  const userLng = state.geo.last.coords.longitude;
+  const heading = state.imu.headingDeg || 0;
+  
+  state.poiClassifications.clear();
+  let nearestDistance = Infinity;
+  state.nearestPOI = null;
+  
+  POIS.forEach(poi => {
+    const distance = calculateDistance(userLat, userLng, poi.lat, poi.lng);
+    const bearing = calculateBearing(userLat, userLng, poi.lat, poi.lng);
+    
+    let type = null;
+    if (distance <= R_IN_RANGE) {
+      type = 'IN_RANGE';
+    } else if (distance <= R_VIS) {
+      type = 'VISIBLE';
+    } else if (distance <= R_NEAREST) {
+      type = 'NEAREST';
+    }
+    
+    if (type) {
+      state.poiClassifications.set(poi.id, {
+        type,
+        distance,
+        bearing,
+        relativeBearing: ((bearing - heading + 360) % 360)
+      });
+    }
+    
+    // Track nearest for fallback
+    if (distance < nearestDistance && distance <= R_NEAREST) {
+      nearestDistance = distance;
+      state.nearestPOI = { poi, distance, bearing };
+    }
+  });
+  
+  // If nothing within R_VIS, use nearest fallback
+  const hasVisible = Array.from(state.poiClassifications.values()).some(c => c.type === 'VISIBLE' || c.type === 'IN_RANGE');
+  if (!hasVisible && state.nearestPOI) {
+    const { poi, distance, bearing } = state.nearestPOI;
+    const heading = state.imu.headingDeg || 0;
+    state.poiClassifications.set(poi.id, {
+      type: 'NEAREST',
+      distance,
+      bearing,
+      relativeBearing: ((bearing - heading + 360) % 360)
+    });
+  }
 }
 
 function updatePOIDistances() {
@@ -557,6 +874,147 @@ function updatePOIDistances() {
   });
 }
 
+function updatePOIRendering() {
+  // Update 3D anchored cards for IN_RANGE POIs
+  state.poiClassifications.forEach((classification, poiId) => {
+    const poi = POIS.find(p => p.id === poiId);
+    if (!poi) return;
+    
+    const entity = document.querySelector(`[data-poi-id="${poiId}"]`);
+    if (!entity) return;
+    
+    if (classification.type === 'IN_RANGE') {
+      entity.setAttribute('visible', true);
+    } else {
+      entity.setAttribute('visible', false);
+    }
+  });
+  
+  // Update off-axis indicators for VISIBLE POIs
+  updateOffAxisIndicators();
+  
+  // Update nearest fallback banner
+  updateNearestFallback();
+}
+
+function updateOffAxisIndicators() {
+  let indicatorContainer = document.getElementById('off-axis-indicators');
+  if (!indicatorContainer) {
+    indicatorContainer = document.createElement('div');
+    indicatorContainer.id = 'off-axis-indicators';
+    indicatorContainer.className = 'off-axis-indicators';
+    document.getElementById('ar-screen').appendChild(indicatorContainer);
+  }
+  
+  // Clear existing
+  indicatorContainer.innerHTML = '';
+  
+  const visiblePOIs = Array.from(state.poiClassifications.entries())
+    .filter(([_, c]) => c.type === 'VISIBLE')
+    .map(([poiId, classification]) => ({
+      poi: POIS.find(p => p.id === poiId),
+      classification
+    }));
+  
+  visiblePOIs.forEach(({ poi, classification }) => {
+    const indicator = createOffAxisIndicator(poi, classification);
+    indicatorContainer.appendChild(indicator);
+  });
+}
+
+function createOffAxisIndicator(poi, classification) {
+  const { relativeBearing, distance } = classification;
+  const isLeft = relativeBearing > 180;
+  // Normalize angle to -180 to 180 for positioning
+  const angle = isLeft ? relativeBearing - 360 : relativeBearing;
+  
+  const div = document.createElement('div');
+  div.className = 'off-axis-chip';
+  div.style.left = isLeft ? '12px' : 'auto';
+  div.style.right = isLeft ? 'auto' : '12px';
+  // Position on screen edge based on angle (-90 to 90 degrees)
+  const normalizedAngle = Math.max(-90, Math.min(90, angle));
+  const topPercent = 50 + (normalizedAngle / 90) * 30; // 20% to 80% of screen
+  div.style.top = `${topPercent}%`;
+  
+  const distText = distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`;
+  const arrowSymbol = isLeft ? '←' : '→';
+  
+  div.innerHTML = `
+    <div class="off-axis-arrow" style="transform: rotate(${angle}deg)">${arrowSymbol}</div>
+    <div class="off-axis-name">${poi.name}</div>
+    <div class="off-axis-distance">${distText}</div>
+  `;
+  
+  return div;
+}
+
+function updateNearestFallback() {
+  const nearest = Array.from(state.poiClassifications.entries())
+    .find(([_, c]) => c.type === 'NEAREST' && !Array.from(state.poiClassifications.values()).some(c2 => c2.type === 'VISIBLE' || c2.type === 'IN_RANGE'));
+  
+  let banner = document.getElementById('nearest-fallback-banner');
+  
+  if (nearest) {
+    const [poiId, classification] = nearest;
+    const poi = POIS.find(p => p.id === poiId);
+    const { distance, relativeBearing } = classification;
+    
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'nearest-fallback-banner';
+      banner.className = 'nearest-fallback-banner';
+      document.getElementById('ar-screen').appendChild(banner);
+    }
+    
+    const distText = distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`;
+    const arrow = relativeBearing > 180 ? '←' : '→';
+    
+    banner.innerHTML = `
+      <div class="nearest-label">Nearest:</div>
+      <div class="nearest-name">${poi.name}</div>
+      <div class="nearest-distance">${distText}</div>
+      <div class="nearest-arrow" style="transform: rotate(${relativeBearing}deg)">${arrow}</div>
+    `;
+    banner.style.display = 'block';
+  } else if (banner) {
+    banner.style.display = 'none';
+  }
+}
+
+function showTemporaryDemoCard() {
+  let tempCard = document.getElementById('temp-demo-card');
+  if (!tempCard) {
+    tempCard = document.createElement('div');
+    tempCard.id = 'temp-demo-card';
+    tempCard.className = 'temp-demo-card';
+    tempCard.innerHTML = '<div class="temp-card-content">Awaiting GPS/Heading...</div>';
+    document.getElementById('ar-screen').appendChild(tempCard);
+  }
+  tempCard.style.display = 'block';
+  
+  // Hide when GPS is ready
+  if (state.geo.last) {
+    tempCard.style.display = 'none';
+  }
+}
+
+function showAccuracyHint(show) {
+  let hint = document.getElementById('accuracy-hint');
+  if (show) {
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'accuracy-hint';
+      hint.className = 'accuracy-hint';
+      hint.textContent = 'Reacquiring location...';
+      document.getElementById('ar-screen').appendChild(hint);
+    }
+    hint.style.display = 'block';
+  } else if (hint) {
+    hint.style.display = 'none';
+  }
+}
+
 function calculateDistance(lat1, lng1, lat2, lng2) {
   const R = 6371000; // Earth radius in meters
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -566,6 +1024,17 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function calculateBearing(lat1, lng1, lat2, lng2) {
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const lat1Rad = lat1 * Math.PI / 180;
+  const lat2Rad = lat2 * Math.PI / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2Rad);
+  const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+            Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+  const bearing = Math.atan2(y, x) * 180 / Math.PI;
+  return ((bearing + 360) % 360);
 }
 
 function updateHUD() {
@@ -584,6 +1053,14 @@ function updateHUDHeading(heading) {
   const el = document.getElementById('heading-value');
   if (el) {
     el.textContent = `${Math.round(heading)}°`;
+  }
+  
+  // Update debug chip
+  const debugChip = document.getElementById('heading-debug-chip');
+  const debugValue = document.getElementById('heading-debug-value');
+  if (debugChip && debugValue) {
+    debugChip.style.display = 'block';
+    debugValue.textContent = Math.round(heading);
   }
 }
 
