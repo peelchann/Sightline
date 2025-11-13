@@ -486,21 +486,115 @@ function setupActionHandlers() {
     return;
   }
   
+  // Prevent double-init
+  if (btnStartAR.disabled) {
+    log('start-ar: already initializing');
+    return;
+  }
+  
+  btnStartAR.disabled = true;
   log('start-ar: initializing AR scene...');
   setChip('AR');
   
-  // Hide start screen, show AR screen
-  const startScreen = document.getElementById('start-screen');
-  const arScreen = document.getElementById('ar-screen');
-  
-  if (startScreen) startScreen.style.display = 'none';
-  if (arScreen) arScreen.style.display = 'block';
-  
-  // Initialize AR scene
-  await enterARScene();
-  
-  log('start-ar: AR scene ready');
+  try {
+    // Ensure all sensors are ready before starting
+    await ensureCameraReady();
+    await firstGoodPosition();
+    await ensureMotionReady();
+    
+    // Hide start screen, show AR screen
+    const startScreen = document.getElementById('start-screen');
+    const arScreen = document.getElementById('ar-screen');
+    
+    if (startScreen) startScreen.style.display = 'none';
+    if (arScreen) arScreen.style.display = 'block';
+    
+    // Initialize AR scene
+    await enterARScene();
+    
+    log('start-ar: AR scene ready');
+  } catch (err) {
+    log(`start-ar: error ${err.message}`);
+    setChip('ERROR');
+    // Auto-switch to demo mode
+    showAccuracyHint(true);
+  } finally {
+    btnStartAR.disabled = false;
+  }
   });
+
+async function ensureCameraReady() {
+  if (!state.camera.stream) {
+    throw new Error('Camera stream not available');
+  }
+  
+  const video = document.getElementById('camera');
+  if (video && !video.srcObject) {
+    video.srcObject = state.camera.stream;
+    await video.play().catch(() => {
+      throw new Error('Camera video failed to play');
+    });
+  }
+  
+  log('camera: ready');
+}
+
+async function firstGoodPosition() {
+  if (!state.geo.last) {
+    throw new Error('No GPS position available');
+  }
+  
+  const acc = state.geo.last.coords.accuracy;
+  if (!Number.isFinite(acc)) {
+    throw new Error('Invalid GPS accuracy');
+  }
+  
+  // Wait for good accuracy (≤100m) or timeout
+  const maxWait = 8000; // 8 seconds
+  const startTime = Date.now();
+  
+  while (acc > 100 && (Date.now() - startTime) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    if (state.geo.last) {
+      const newAcc = state.geo.last.coords.accuracy;
+      if (Number.isFinite(newAcc) && newAcc <= 100) {
+        log(`gps: good accuracy ±${Math.round(newAcc)}m`);
+        return;
+      }
+    }
+  }
+  
+  if (acc > 100) {
+    log(`gps: warning - accuracy ±${Math.round(acc)}m (continuing anyway)`);
+  } else {
+    log(`gps: position ready ±${Math.round(acc)}m`);
+  }
+}
+
+async function ensureMotionReady() {
+  // Motion is optional but preferred
+  if (!state.imu.granted) {
+    log('motion: not granted (continuing without heading)');
+    return;
+  }
+  
+  if (state.imu.headingDeg === null) {
+    log('motion: waiting for first heading...');
+    // Wait up to 2 seconds for first heading
+    const maxWait = 2000;
+    const startTime = Date.now();
+    
+    while (state.imu.headingDeg === null && (Date.now() - startTime) < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    if (state.imu.headingDeg === null) {
+      log('motion: no heading received (continuing without)');
+    } else {
+      log(`motion: heading ready ${Math.round(state.imu.headingDeg)}°`);
+    }
+  }
+}
   
   // Demo Mode
   const btnDemo = document.getElementById('btn-start-demo');
