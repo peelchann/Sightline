@@ -786,15 +786,326 @@ function addPOIsToScene(scene) {
 // UPDATE LOOPS
 // ============================================================================
 
+// Debug state
+let debugFrameCount = 0;
+let lastFpsTime = performance.now();
+let fps = 0;
+let debugHudVisible = false;
+let nearestPOIEntity = null;
+let debugCube = null;
+
 function startUpdateLoop() {
   const update = () => {
+    // Check for NaNs first
+    checkForNaNs();
+    
+    // Update FPS
+    updateFPS();
+    
+    // Update sensor chips
+    updateSensorChips();
+    
+    // Update HUD
     updateHUD();
+    
+    // Classify POIs (with NaN guards)
     classifyPOIs();
+    
+    // Update POI distances
     updatePOIDistances();
+    
+    // Update POI rendering with visibility checks
     updatePOIRendering();
+    
+    // Update off-screen arrow
+    updateOffScreenArrow();
+    
+    // Update debug HUD
+    updateDebugHUD();
+    
     requestAnimationFrame(update);
   };
   update();
+}
+
+function updateFPS() {
+  const now = performance.now();
+  const delta = now - lastFpsTime;
+  if (delta >= 1000) {
+    fps = Math.round((debugFrameCount * 1000) / delta);
+    debugFrameCount = 0;
+    lastFpsTime = now;
+  } else {
+    debugFrameCount++;
+  }
+}
+
+function checkForNaNs() {
+  let hasNaN = false;
+  
+  if (state.geo.last) {
+    const lat = state.geo.last.coords.latitude;
+    const lng = state.geo.last.coords.longitude;
+    const acc = state.geo.last.coords.accuracy;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(acc)) {
+      hasNaN = true;
+    }
+  }
+  
+  if (state.imu.headingDeg !== null && !Number.isFinite(state.imu.headingDeg)) {
+    hasNaN = true;
+  }
+  
+  // Check POI classifications
+  state.poiClassifications.forEach((classification) => {
+    if (!Number.isFinite(classification.distance) || 
+        !Number.isFinite(classification.bearing)) {
+      hasNaN = true;
+    }
+  });
+  
+  const nanBadge = document.getElementById('nan-badge');
+  if (nanBadge) {
+    nanBadge.style.display = hasNaN ? 'block' : 'none';
+  }
+  
+  if (hasNaN) {
+    log('WARNING: NaN detected in sensor data');
+  }
+}
+
+function updateSensorChips() {
+  const gpsChip = document.getElementById('sensor-gps');
+  const hdgChip = document.getElementById('sensor-hdg');
+  const fpsChip = document.getElementById('sensor-fps');
+  
+  if (gpsChip) {
+    if (state.geo.last && Number.isFinite(state.geo.last.coords.accuracy)) {
+      const acc = Math.round(state.geo.last.coords.accuracy);
+      gpsChip.textContent = `GPS ±${acc}m`;
+      gpsChip.classList.toggle('warning', acc > 80);
+    } else {
+      gpsChip.textContent = 'GPS —';
+      gpsChip.classList.add('warning');
+    }
+  }
+  
+  if (hdgChip) {
+    if (state.imu.headingDeg !== null && Number.isFinite(state.imu.headingDeg)) {
+      hdgChip.textContent = `hdg ${Math.round(state.imu.headingDeg)}°`;
+      hdgChip.classList.remove('warning');
+    } else {
+      hdgChip.textContent = 'hdg —';
+      hdgChip.classList.add('warning');
+    }
+  }
+  
+  if (fpsChip) {
+    fpsChip.textContent = `fps ${fps}`;
+  }
+}
+
+function updateDebugHUD() {
+  if (!debugHudVisible) return;
+  
+  const debugGps = document.getElementById('debug-gps');
+  const debugAcc = document.getElementById('debug-acc');
+  const debugHeading = document.getElementById('debug-heading');
+  const debugNearest = document.getElementById('debug-nearest');
+  const debugDist = document.getElementById('debug-dist');
+  const debugBearing = document.getElementById('debug-bearing');
+  const debugBearingDelta = document.getElementById('debug-bearing-delta');
+  const debugScreen = document.getElementById('debug-screen');
+  const debugOnscreen = document.getElementById('debug-onscreen');
+  const debugFps = document.getElementById('debug-fps');
+  
+  // GPS
+  if (debugGps && state.geo.last) {
+    const lat = state.geo.last.coords.latitude;
+    const lng = state.geo.last.coords.longitude;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      debugGps.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } else {
+      debugGps.textContent = 'NaN';
+    }
+  }
+  
+  // Accuracy
+  if (debugAcc && state.geo.last) {
+    const acc = state.geo.last.coords.accuracy;
+    if (Number.isFinite(acc)) {
+      debugAcc.textContent = `±${Math.round(acc)}m`;
+    } else {
+      debugAcc.textContent = 'NaN';
+    }
+  }
+  
+  // Heading
+  if (debugHeading) {
+    if (state.imu.headingDeg !== null && Number.isFinite(state.imu.headingDeg)) {
+      debugHeading.textContent = `${Math.round(state.imu.headingDeg)}°`;
+    } else {
+      debugHeading.textContent = '—';
+    }
+  }
+  
+  // Nearest POI
+  if (state.nearestPOI) {
+    const { poi, distance, bearing } = state.nearestPOI;
+    const heading = state.imu.headingDeg || 0;
+    const bearingDelta = shortestBearingDelta(heading, bearing);
+    
+    if (debugNearest) debugNearest.textContent = poi.name;
+    if (debugDist) {
+      if (Number.isFinite(distance)) {
+        debugDist.textContent = distance < 1000 
+          ? `${Math.round(distance)}m` 
+          : `${(distance / 1000).toFixed(1)}km`;
+      } else {
+        debugDist.textContent = 'NaN';
+      }
+    }
+    if (debugBearing) {
+      if (Number.isFinite(bearing)) {
+        debugBearing.textContent = `${Math.round(bearing)}°`;
+      } else {
+        debugBearing.textContent = 'NaN';
+      }
+    }
+    if (debugBearingDelta) {
+      if (Number.isFinite(bearingDelta)) {
+        debugBearingDelta.textContent = `${Math.round(bearingDelta)}°`;
+      } else {
+        debugBearingDelta.textContent = 'NaN';
+      }
+    }
+    
+    // Screen projection
+    const scene = document.querySelector('a-scene');
+    const camera = scene?.querySelector('a-camera');
+    if (camera && nearestPOIEntity) {
+      const screen = worldToScreen(nearestPOIEntity.object3D, camera.object3D);
+      if (debugScreen) {
+        debugScreen.textContent = `${Math.round(screen.x)}, ${Math.round(screen.y)}`;
+      }
+      if (debugOnscreen) {
+        debugOnscreen.textContent = screen.visible ? 'YES' : 'NO';
+      }
+    } else {
+      if (debugScreen) debugScreen.textContent = '—';
+      if (debugOnscreen) debugOnscreen.textContent = '—';
+    }
+  } else {
+    if (debugNearest) debugNearest.textContent = '—';
+    if (debugDist) debugDist.textContent = '—';
+    if (debugBearing) debugBearing.textContent = '—';
+    if (debugBearingDelta) debugBearingDelta.textContent = '—';
+    if (debugScreen) debugScreen.textContent = '—';
+    if (debugOnscreen) debugOnscreen.textContent = '—';
+  }
+  
+  // FPS
+  if (debugFps) {
+    debugFps.textContent = fps;
+  }
+  
+  // Log first 10 frames after permissions
+  if (debugFrameCount <= 10 && state.geo.granted && state.camera.granted) {
+    const activePois = Array.from(state.poiClassifications.entries())
+      .map(([id, c]) => {
+        const poi = POIS.find(p => p.id === id);
+        return { id: poi?.name || id, distM: Math.round(c.distance) };
+      })
+      .sort((a, b) => a.distM - b.distM)
+      .slice(0, 5);
+    
+    console.table({
+      frame: debugFrameCount,
+      activePois: activePois.length,
+      top5: activePois.map(p => `${p.id} (${p.distM}m)`).join(', ')
+    });
+  }
+}
+
+function updateOffScreenArrow() {
+  const arrowHUD = document.getElementById('arrowHUD');
+  const needle = arrowHUD?.querySelector('.needle');
+  const label = arrowHUD?.querySelector('.label');
+  
+  if (!arrowHUD || !needle || !label) return;
+  
+  if (!state.nearestPOI || !state.geo.last || state.imu.headingDeg === null) {
+    arrowHUD.classList.add('hidden');
+    return;
+  }
+  
+  const { poi, distance, bearing } = state.nearestPOI;
+  const heading = state.imu.headingDeg;
+  
+  // Check if NaN
+  if (!Number.isFinite(distance) || !Number.isFinite(bearing) || !Number.isFinite(heading)) {
+    arrowHUD.classList.add('hidden');
+    return;
+  }
+  
+  // Check if POI is on screen
+  const scene = document.querySelector('a-scene');
+  const camera = scene?.querySelector('a-camera');
+  let isOnScreen = false;
+  
+  if (camera && nearestPOIEntity) {
+    const screen = worldToScreen(nearestPOIEntity.object3D, camera.object3D);
+    isOnScreen = screen.visible;
+  }
+  
+  // Show arrow only if off-screen and within range
+  if (isOnScreen && distance <= R_IN_RANGE) {
+    arrowHUD.classList.add('hidden');
+    return;
+  }
+  
+  // Calculate bearing delta
+  const bearingDelta = shortestBearingDelta(heading, bearing);
+  
+  if (!Number.isFinite(bearingDelta)) {
+    arrowHUD.classList.add('hidden');
+    return;
+  }
+  
+  // Update arrow
+  needle.style.transform = `rotate(${bearingDelta}deg)`;
+  
+  // Update label
+  const distText = distance < 1000 
+    ? `${Math.round(distance)}m` 
+    : `${(distance / 1000).toFixed(1)}km`;
+  label.textContent = `${poi.name} · ${distText} →`;
+  
+  arrowHUD.classList.remove('hidden');
+}
+
+function setupDebugHUD() {
+  const debugHud = document.getElementById('debug-hud');
+  const toggle = document.getElementById('debug-hud-toggle');
+  
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      debugHudVisible = !debugHudVisible;
+      if (debugHud) {
+        debugHud.style.display = debugHudVisible ? 'block' : 'none';
+      }
+    });
+  }
+  
+  // Toggle with 'D' key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'd' || e.key === 'D') {
+      debugHudVisible = !debugHudVisible;
+      if (debugHud) {
+        debugHud.style.display = debugHudVisible ? 'block' : 'none';
+      }
+    }
+  });
 }
 
 function classifyPOIs() {
@@ -804,17 +1115,29 @@ function classifyPOIs() {
     return;
   }
   
-  const userLat = state.geo.last.coords.latitude;
-  const userLng = state.geo.last.coords.longitude;
-  const heading = state.imu.headingDeg || 0;
+  const userLat = Number(state.geo.last.coords.latitude);
+  const userLng = Number(state.geo.last.coords.longitude);
+  const heading = Number(state.imu.headingDeg) || 0;
+  
+  // Guard against NaN
+  if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+    log('WARNING: Invalid GPS coordinates');
+    return;
+  }
   
   state.poiClassifications.clear();
   let nearestDistance = Infinity;
   state.nearestPOI = null;
+  nearestPOIEntity = null;
   
   POIS.forEach(poi => {
-    const distance = calculateDistance(userLat, userLng, poi.lat, poi.lng);
-    const bearing = calculateBearing(userLat, userLng, poi.lat, poi.lng);
+    const distance = haversineM(userLat, userLng, poi.lat, poi.lng);
+    const bearing = bearingDeg(userLat, userLng, poi.lat, poi.lng);
+    
+    // Skip if NaN
+    if (!Number.isFinite(distance) || !Number.isFinite(bearing)) {
+      return;
+    }
     
     let type = null;
     if (distance <= R_IN_RANGE) {
@@ -826,11 +1149,12 @@ function classifyPOIs() {
     }
     
     if (type) {
+      const relativeBearing = normalizeDeg(bearing - heading);
       state.poiClassifications.set(poi.id, {
         type,
         distance,
         bearing,
-        relativeBearing: ((bearing - heading + 360) % 360)
+        relativeBearing
       });
     }
     
@@ -838,6 +1162,12 @@ function classifyPOIs() {
     if (distance < nearestDistance && distance <= R_NEAREST) {
       nearestDistance = distance;
       state.nearestPOI = { poi, distance, bearing };
+      
+      // Find entity for screen projection
+      const entity = document.querySelector(`[data-poi-id="${poi.id}"]`);
+      if (entity) {
+        nearestPOIEntity = entity;
+      }
     }
   });
   
@@ -845,12 +1175,12 @@ function classifyPOIs() {
   const hasVisible = Array.from(state.poiClassifications.values()).some(c => c.type === 'VISIBLE' || c.type === 'IN_RANGE');
   if (!hasVisible && state.nearestPOI) {
     const { poi, distance, bearing } = state.nearestPOI;
-    const heading = state.imu.headingDeg || 0;
+    const heading = Number(state.imu.headingDeg) || 0;
     state.poiClassifications.set(poi.id, {
       type: 'NEAREST',
       distance,
       bearing,
-      relativeBearing: ((bearing - heading + 360) % 360)
+      relativeBearing: normalizeDeg(bearing - heading)
     });
   }
 }
@@ -875,7 +1205,10 @@ function updatePOIDistances() {
 }
 
 function updatePOIRendering() {
-  // Update 3D anchored cards for IN_RANGE POIs
+  const scene = document.querySelector('a-scene');
+  const camera = scene?.querySelector('a-camera');
+  
+  // Update 3D anchored cards for IN_RANGE and VISIBLE POIs
   state.poiClassifications.forEach((classification, poiId) => {
     const poi = POIS.find(p => p.id === poiId);
     if (!poi) return;
@@ -883,7 +1216,32 @@ function updatePOIRendering() {
     const entity = document.querySelector(`[data-poi-id="${poiId}"]`);
     if (!entity) return;
     
+    // Check if NaN
+    if (!Number.isFinite(classification.distance) || !Number.isFinite(classification.bearing)) {
+      entity.setAttribute('visible', false);
+      return;
+    }
+    
+    // For IN_RANGE: show if on screen or clamp to visible distance
     if (classification.type === 'IN_RANGE') {
+      // Check screen projection
+      const screen = worldToScreen(entity.object3D, camera?.object3D);
+      
+      // If far away, clamp position to make it visible
+      if (classification.distance > 80) {
+        // Place at clamped distance (60-80m) along bearing
+        const clampedDist = Math.min(Math.max(classification.distance, 60), 80);
+        // This would require custom positioning logic - for now, just show/hide
+      }
+      
+      entity.setAttribute('visible', true);
+      
+      // Add debug cube if ?debug=1
+      if (new URLSearchParams(window.location.search).get('debug') === '1') {
+        addDebugCube(entity);
+      }
+    } else if (classification.type === 'VISIBLE') {
+      // For VISIBLE: show card clamped at 60-80m
       entity.setAttribute('visible', true);
     } else {
       entity.setAttribute('visible', false);
@@ -895,6 +1253,21 @@ function updatePOIRendering() {
   
   // Update nearest fallback banner
   updateNearestFallback();
+}
+
+function addDebugCube(entity) {
+  if (debugCube) return; // Already added
+  
+  const cube = document.createElement('a-box');
+  cube.setAttribute('position', '0 0 0');
+  cube.setAttribute('width', '1');
+  cube.setAttribute('height', '1');
+  cube.setAttribute('depth', '1');
+  cube.setAttribute('color', '#ff0000');
+  cube.setAttribute('opacity', '0.5');
+  cube.id = 'debug-cube';
+  entity.appendChild(cube);
+  debugCube = cube;
 }
 
 function updateOffAxisIndicators() {
@@ -1015,26 +1388,98 @@ function showAccuracyHint(show) {
   }
 }
 
-function calculateDistance(lat1, lng1, lat2, lng2) {
+// ============================================================================
+// ROBUST MATH HELPERS (NaN-Safe)
+// ============================================================================
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  // Guard against NaN/undefined
+  lat1 = Number(lat1);
+  lon1 = Number(lon1);
+  lat2 = Number(lat2);
+  lon2 = Number(lon2);
+  
+  if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || 
+      !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return NaN;
+  }
+  
   const R = 6371000; // Earth radius in meters
   const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const dLng = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  const dist = R * c;
+  return Number.isFinite(dist) ? dist : NaN;
 }
 
-function calculateBearing(lat1, lng1, lat2, lng2) {
-  const dLng = (lng2 - lng1) * Math.PI / 180;
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  lat1 = Number(lat1);
+  lon1 = Number(lon1);
+  lat2 = Number(lat2);
+  lon2 = Number(lon2);
+  
+  if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || 
+      !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return NaN;
+  }
+  
+  const dLng = (lon2 - lon1) * Math.PI / 180;
   const lat1Rad = lat1 * Math.PI / 180;
   const lat2Rad = lat2 * Math.PI / 180;
   const y = Math.sin(dLng) * Math.cos(lat2Rad);
   const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
             Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
   const bearing = Math.atan2(y, x) * 180 / Math.PI;
-  return ((bearing + 360) % 360);
+  return normalizeDeg(bearing);
+}
+
+function normalizeDeg(d) {
+  d = Number(d);
+  if (!Number.isFinite(d)) return NaN;
+  return ((d % 360) + 360) % 360;
+}
+
+function shortestBearingDelta(a, b) {
+  a = normalizeDeg(a);
+  b = normalizeDeg(b);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+  let d = normalizeDeg(b - a);
+  return d > 180 ? d - 360 : d;
+}
+
+function worldToScreen(obj3D, camera, out = { x: 0, y: 0, visible: false }) {
+  if (!obj3D || !camera) {
+    out.visible = false;
+    return out;
+  }
+  
+  const vector = new THREE.Vector3();
+  obj3D.getWorldPosition(vector);
+  vector.project(camera);
+  
+  out.x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+  out.y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+  
+  // Visible if in viewport and in front of camera
+  out.visible = (
+    vector.x >= -1 && vector.x <= 1 &&
+    vector.y >= -1 && vector.y <= 1 &&
+    vector.z >= 0 && vector.z <= 1
+  );
+  
+  return out;
+}
+
+// Legacy aliases for backward compatibility
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  return haversineM(lat1, lng1, lat2, lng2);
+}
+
+function calculateBearing(lat1, lng1, lat2, lng2) {
+  return bearingDeg(lat1, lng1, lat2, lng2);
 }
 
 function updateHUD() {
@@ -1269,6 +1714,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupIOSHelp();
   setupDebugToggle();
   setupMuseumDebugToggle();
+  setupDebugHUD();
   
   // Setup resize handlers
   window.addEventListener('resize', () => {
