@@ -143,7 +143,10 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Dark Cinematic Background */
+  background: #050505;
+  background-image: 
+    radial-gradient(circle at 50% 0%, #1e293b 0%, #000 60%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,73 +155,92 @@ body {
 }
 
 .start-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+  /* Glassmorphism */
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 32px;
   padding: 32px;
-  max-width: 450px;
+  max-width: 420px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 24px 48px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   max-height: 90vh;
   overflow-y: auto;
 }
 
 .start-card h1 {
-  color: #111;
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 12px;
   text-align: center;
+  /* Gradient Text */
+  background: linear-gradient(to bottom, #ffffff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
 }
 
 .subtitle {
-  color: #666;
-  font-size: 14px;
+  color: #94a3b8;
+  font-size: 15px;
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  line-height: 1.5;
 }
 
 /* ===== PERMISSION SECTION ===== */
 .permission-section {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .permission-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: #f8f8f8;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  transition: all 0.3s;
+  padding: 16px 20px;
+  /* Darker inner cards */
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .permission-row:hover {
-  background: #f0f0f0;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
 .permission-info {
   display: flex;
   align-items: center;
   flex: 1;
-  gap: 12px;
+  gap: 16px;
 }
 
 .permission-icon {
   font-size: 24px;
   min-width: 32px;
+  filter: grayscale(0.5);
 }
 
 .permission-label {
-  color: #333;
+  color: #e2e8f0;
   font-weight: 600;
   font-size: 16px;
   margin-bottom: 4px;
 }
 
 .permission-desc {
-  color: #666;
-  font-size: 12px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .permission-controls {
@@ -229,37 +251,39 @@ body {
 
 /* Status Pills */
 .status-pill {
-  font-size: 20px;
-  min-width: 28px;
+  font-size: 12px; /* Replaced emoji with colored dot in JS or CSS? Text is emoji in HTML */
+  min-width: 20px;
   text-align: center;
   display: inline-block;
+  transform: scale(0.8);
 }
 
 /* Permission Buttons */
 .btn-perm {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  background: #667eea;
-  color: #fff;
+  /* Transparent style */
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
   white-space: nowrap;
 }
 
 .btn-perm:hover:not(:disabled) {
-  background: #5568d3;
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .btn-perm:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .btn-perm:disabled {
-  opacity: 0.5;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -295,13 +319,14 @@ body {
 
 .btn {
   width: 100%;
-  padding: 16px;
+  padding: 18px;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 24px;
+  font-size: 17px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
 }
 
 .btn:active:not(:disabled) {
@@ -309,43 +334,61 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Vibrant Blue/Purple Gradient */
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #fff;
+  box-shadow: 
+    0 4px 12px rgba(37, 99, 235, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
+  box-shadow: 
+    0 8px 24px rgba(37, 99, 235, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #ccc;
+  background: #334155;
+  box-shadow: none;
+  color: #64748b;
 }
 
 .btn-secondary {
-  background: #f0f0f0;
-  color: #333;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ===== iOS HELP ===== */
 .ios-help {
-  margin-top: 16px;
+  margin-top: 24px;
   text-align: center;
 }
 
 .ios-help-link {
-  color: #667eea;
+  color: #3b82f6;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 99px;
+  background: rgba(59, 130, 246, 0.1);
+  transition: background 0.2s;
 }
 
 .ios-help-link:hover {
-  text-decoration: underline;
+  background: rgba(59, 130, 246, 0.2);
+  text-decoration: none;
 }
 
 /* Modal (Safe Area Aware) */
