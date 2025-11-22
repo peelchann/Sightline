@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sightline WebAR - Validation Hologram</title>
+  
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <!-- Using the specific build that supports gps-new-camera if available, otherwise standard -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  
+  <link rel="stylesheet" href="hologram.css">
+</head>
+<body>
+
+  <!-- CALIBRATION UI (Overlay) -->
+  <div id="calibration-ui" class="calibration-ui">
+    <div class="calib-header">
+      <h2>⚠️ Alignment Required</h2>
+      <p>Drag the wireframe to match the real building.</p>
+    </div>
+    
+    <div id="touch-pad" class="touch-pad">
+      <div class="touch-hint">Drag to Adjust Position</div>
+      <div class="touch-hint-sub">Use two fingers to rotate</div>
+    </div>
+
+    <div class="calib-controls">
+      <div class="calib-row">
+        <button id="btn-nudge-up" class="btn-nudge">⬆️ Up</button>
+        <button id="btn-nudge-down" class="btn-nudge">⬇️ Down</button>
+      </div>
+      <button id="btn-lock" class="btn-lock">🔒 LOCK TARGET</button>
+    </div>
+  </div>
+
+  <!-- INFO OVERLAYS (Glassmorphism) -->
+  <div id="info-overlays" class="info-overlays" style="display: none;">
+    <div id="panel-main" class="ar-panel">
+      <h3>TOWER_DATA</h3>
+      <div class="data-row">
+        <span class="label">ALT:</span> <span class="val">44.2m</span>
+      </div>
+      <div class="data-row">
+        <span class="label">DIST:</span> <span class="val" id="dist-val">--</span>
+      </div>
+      <div class="data-row">
+        <span class="label">STATUS:</span> <span class="val blink">ACTIVE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AR SCENE -->
+  <!-- using gps-new-camera as requested -->
+  <a-scene
+    embedded
+    arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false;'
+    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true;"
+    vr-mode-ui="enabled: false"
+  >
+    
+    <!-- Camera -->
+    <a-camera gps-new-camera rotation-reader></a-camera>
+
+    <!-- CONTENT CONTAINER (To be moved during calibration) -->
+    <!-- We will attach this to a GPS location dynamically -->
+    <a-entity id="world-root" visible="false">
+      
+      <!-- PROXY OBJECT (The "Hole" / Occluder) -->
+      <!-- Represents the physical Clock Tower -->
+      <a-cylinder 
+        id="proxy-tower"
+        height="44" 
+        radius="5" 
+        position="0 22 0"
+        color-write="false"
+      ></a-cylinder>
+
+      <!-- HOLOGRAPHIC CONTENT (The "Gears") -->
+      <!-- Placed "inside" the proxy, but protruding out to show the effect -->
+      <!-- Proxy Radius is 5, so we make gears larger to emerge from the tower -->
+      <a-entity position="0 20 0">
+        <!-- Big Gear -->
+        <a-torus-knot 
+          id="gear-knot"
+          radius="6" 
+          radius-tubular="0.5" 
+          p="2" 
+          q="3"
+          hologram-material
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear;"
+        ></a-torus-knot>
+        
+        <!-- Inner Rings -->
+        <a-ring 
+          radius-inner="6.5" 
+          radius-outer="6.8" 
+          hologram-material
+          rotation="90 0 0"
+          animation="property: rotation; to: 90 360 0; loop: true; dur: 15000; easing: linear;"
+        ></a-ring>
+      </a-entity>
+
+    </a-entity>
+
+  </a-scene>
+
+  <script src="hologram-app.js"></script>
+</body>
+</html>
