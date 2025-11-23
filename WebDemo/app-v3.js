@@ -109,20 +109,20 @@ async function runPermissionSequence() {
     UI.btnEnable.disabled = false;
     return;
   }
-
+  
   // 2. Location
   try {
     log('Req: Location...');
     await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
           state.sensors.gps = pos;
           resolve();
         },
         (err) => reject(err),
         { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
+  );
+  });
     setPermState('location', true);
     log('Ack: Location');
   } catch (e) {
@@ -132,7 +132,7 @@ async function runPermissionSequence() {
     UI.btnEnable.disabled = false;
     return;
   }
-
+  
   // 3. Motion (iOS Guard)
   try {
     log('Req: Motion...');
@@ -141,10 +141,10 @@ async function runPermissionSequence() {
       if (permission === 'granted') {
         setPermState('motion', true);
         log('Ack: Motion (iOS)');
-      } else {
+  } else {
         throw new Error('iOS Motion denied');
       }
-    } else {
+  } else {
       // Non-iOS or older
       setPermState('motion', true);
       log('Ack: Motion (Implicit)');
@@ -156,7 +156,7 @@ async function runPermissionSequence() {
     UI.btnEnable.disabled = false;
     return;
   }
-
+  
   // Done?
   if (checkAllGranted()) {
     showEnterButton();
@@ -195,13 +195,16 @@ function initARScene() {
   scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; precision: medium; antialias: true; alpha: true;');
   
   // AR.js config
+  // FIX: Updated config to match requirements and fix black screen
   scene.setAttribute('arjs', `
     sourceType: webcam; 
-    videoTexture: true; 
     debugUIEnabled: false; 
-    sourceWidth: 1280; sourceHeight: 960; 
-    displayWidth: 1280; displayHeight: 960;
+    detectionMode: mono_and_matrix; 
+    matrixCodeType: 3x3;
   `);
+  
+  // Renderer config for logarithmic depth (prevents z-fighting)
+  scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; precision: medium;');
 
   // Camera
   const cam = document.createElement('a-camera');
@@ -209,11 +212,21 @@ function initARScene() {
   cam.setAttribute('rotation-reader', '');
   scene.appendChild(cam);
 
-  // Add POIs
-  POIS.forEach(poi => {
-    const el = createPOI(poi);
-    scene.appendChild(el);
+  // Add listener for GPS updates to load content dynamically
+  let contentLoaded = false;
+  scene.addEventListener('gps-camera-update-position', (e) => {
+    if (!contentLoaded) {
+      log(`GPS Acquired: ${e.detail.position.longitude}, ${e.detail.position.latitude}`);
+      loadTuenMunContent(scene);
+      contentLoaded = true;
+    }
   });
+
+  // Add static POIs (Legacy/Global) - Optional, keeping for now or can remove if Tuen Mun is exclusive
+  // POIS.forEach(poi => {
+  //   const el = createPOI(poi);
+  //   scene.appendChild(el);
+  // });
 
   UI.stage.appendChild(scene);
   
@@ -222,6 +235,32 @@ function initARScene() {
     // Keep sensor warm
     state.sensors.heading = e.webkitCompassHeading || (360 - e.alpha);
   }, true);
+}
+
+function loadTuenMunContent(scene) {
+  log('Loading Tuen Mun Content...');
+
+  // POI 1: Tuen Mun Government School
+  const poi1 = document.createElement('a-text');
+  poi1.setAttribute('value', 'Tuen Mun Govt. School');
+  poi1.setAttribute('look-at', '[gps-camera]');
+  poi1.setAttribute('color', '#FFFFFF');
+  poi1.setAttribute('scale', '10 10 10'); // Large visibility
+  poi1.setAttribute('align', 'center');
+  poi1.setAttribute('gps-entity-place', 'latitude: 22.3916; longitude: 113.9765;');
+  scene.appendChild(poi1);
+
+  // POI 2: Jockey Club
+  const poi2 = document.createElement('a-text');
+  poi2.setAttribute('value', 'Jockey Club');
+  poi2.setAttribute('look-at', '[gps-camera]');
+  poi2.setAttribute('color', '#FFFF00'); // Yellow
+  poi2.setAttribute('scale', '10 10 10');
+  poi2.setAttribute('align', 'center');
+  poi2.setAttribute('gps-entity-place', 'latitude: 22.3925; longitude: 113.9770;');
+  scene.appendChild(poi2);
+
+  log('Tuen Mun POIs added.');
 }
 
 function createPOI(poi) {
