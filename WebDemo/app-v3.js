@@ -195,17 +195,8 @@ function initARScene() {
   scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; precision: medium; antialias: true; alpha: true;');
   
   // AR.js config
-  // FIX: Updated config to match requirements and fix black screen
-  scene.setAttribute('arjs', `
-    sourceType: webcam; 
-    debugUIEnabled: false; 
-    detectionMode: mono_and_matrix; 
-    matrixCodeType: 3x3;
-  `);
+  scene.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
   
-  // Renderer config for logarithmic depth (prevents z-fighting)
-  scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; precision: medium;');
-
   // Camera
   const cam = document.createElement('a-camera');
   cam.setAttribute('gps-camera', 'minDistance: 20; maxDistance: 5000;');

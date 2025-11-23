@@ -45,7 +45,7 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: var(--z-video);
-  background: #000;
+  background: transparent; /* Changed from #000 to transparent so it doesn't block video */
 }
 
 /* A-Frame canvas and video should fill this stage */
@@ -55,13 +55,18 @@ a-scene {
   height: 100%;
 }
 
+/* Ensure video and canvas are forced to cover screen */
 .ar-stage canvas,
-.ar-stage video {
+.ar-stage video,
+.a-canvas {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   max-width: 100% !important;
   max-height: 100% !important;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 /* ===== START PANEL (REDUCTION DESIGN) ===== */
