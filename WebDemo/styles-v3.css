@@ -61,19 +61,25 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: var(--z-start);
-  display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
-  padding: calc(env(safe-area-inset-top) + 20px) 24px calc(env(safe-area-inset-bottom) + 20px) 24px;
-  /* Background Image - Place your image at: assets/img/start-hero.jpg */
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 16px) 20px calc(env(safe-area-inset-bottom) + 20px) 20px;
+  /* Background Image - Place your PNG at: assets/img/start-hero.png */
   background-image:
-    linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.55)),
-    url('./assets/img/start-hero.jpg');
+    linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.6) 100%),
+    url('./assets/img/start-hero.png'),
+    url('./assets/img/start-hero.jpg'); /* Fallback to JPG if PNG doesn't exist */
   /* Fallback gradient if image doesn't load */
   background-color: #0a0a0f;
   background-size: cover;
-  background-position: center;
+  background-position: center 30%; /* For landscape image on portrait phone - show upper-middle */
   background-repeat: no-repeat;
+  background-attachment: fixed; /* Parallax-like effect */
   transition: opacity 0.5s ease, visibility 0.5s;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for iOS */
 }
 
 .start-panel.hidden {
@@ -113,17 +119,19 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .brand-mark-text {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .brand-title {
   font-weight: 600;
   letter-spacing: .2px;
   opacity: .95;
-  font-size: 18px;
+  font-size: 16px;
   color: #fff;
 }
 
@@ -132,22 +140,24 @@ html, body {
 }
 
 .hero-title {
-  margin: 24px 0;
-  font-size: clamp(32px, 8vw, 48px);
-  line-height: 1.02;
+  margin: 20px 0 32px 0;
+  font-size: clamp(28px, 10vw, 42px);
+  line-height: 1.05;
   text-transform: uppercase;
   font-weight: 800;
   color: #fff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  align-self: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
 }
 
 .perm-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 100%;
-  margin-bottom: 20px;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 24px;
+  flex-shrink: 0;
 }
 
 .pill {
@@ -155,18 +165,24 @@ html, body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 16px 20px;
-  border-radius: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   color: var(--text-sec);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pill:active {
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .pill span:first-child {
@@ -202,14 +218,20 @@ html, body {
 }
 
 .cta.primary {
-  padding: 18px 20px;
-  border-radius: 28px;
+  padding: 16px 20px;
+  border-radius: 24px;
   background: var(--primary-grad);
   color: #fff;
   font-weight: 700;
-  font-size: 18px;
+  font-size: 17px;
   border: none;
-  box-shadow: 0 8px 24px rgba(10, 132, 255, 0.3);
+  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cta.primary:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .cta.primary:disabled {
@@ -220,13 +242,19 @@ html, body {
 }
 
 .cta.ghost {
-  margin-top: 12px;
+  margin-top: 10px;
   padding: 12px;
   color: #d0d9ff;
   background: transparent;
   border: none;
   font-size: 14px;
   font-weight: 500;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cta.ghost:active {
+  opacity: 0.7;
 }
 
 /* ===== DEBUG PANEL ===== */
@@ -255,6 +283,69 @@ html, body {
 .dev-log-content {
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* ===== PORTRAIT/IPHONE OPTIMIZATIONS ===== */
+@media (orientation: portrait) and (max-width: 480px) {
+  .start-panel {
+    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;
+    background-position: center 20%; /* Show upper portion of landscape image */
+  }
+  
+  .hero-title {
+    font-size: clamp(24px, 9vw, 36px);
+    margin: 16px 0 24px 0;
+    line-height: 1.1;
+  }
+  
+  .brand-title {
+    font-size: 15px;
+  }
+  
+  .pill {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  
+  .cta.primary {
+    padding: 14px 18px;
+    font-size: 16px;
+  }
+  
+  .perm-list {
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+}
+
+/* iPhone specific safe area adjustments */
+@supports (padding: max(0px)) {
+  .start-panel {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+  }
+}
+
+/* Landscape image in portrait: ensure it covers well */
+@media (orientation: portrait) {
+  .start-panel {
+    background-size: cover;
+    background-position: center 30%; /* Show upper-middle portion of landscape image */
+    /* For 1920x1080 landscape image on portrait phone, this shows the top-center area */
+  }
+}
+
+/* Ensure content doesn't get cut off on small phones */
+@media (max-height: 700px) {
+  .hero-title {
+    margin: 12px 0 20px 0;
+    font-size: clamp(22px, 8vw, 32px);
+  }
+  
+  .perm-list {
+    margin-bottom: 16px;
+    gap: 8px;
+  }
 }
 
 /* ===== EXISTING AR STYLES (Preserved) ===== */
