@@ -1,6 +1,5 @@
 /**
- * Sightline WebAR - V3 Styles (Refactored for V4 Start Screen)
- * Unified Permission Flow & Hero Layout
+ * Sightline WebAR - V3 Styles (Reduction and Deference Redesign)
  */
 
 * {
@@ -22,11 +21,11 @@
   --z-modal: 500;
   
   /* Colors */
-  --primary-grad: linear-gradient(90deg, #0A84FF, #A855F7);
-  --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.18);
   --text-main: #fff;
   --text-sec: #e6f2ff;
+  --color-blue: #007AFF; /* System Blue */
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.2);
 }
 
 html, body {
@@ -37,7 +36,7 @@ html, body {
   background: #000;
   touch-action: none;
   overscroll-behavior: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   color: var(--text-main);
 }
 
@@ -57,29 +56,29 @@ html, body {
   object-fit: cover !important;
 }
 
+/* ===== START PANEL (REDUCTION DESIGN) ===== */
 .start-panel {
   position: fixed;
   inset: 0;
   z-index: var(--z-start);
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top) + 16px) 20px calc(env(safe-area-inset-bottom) + 20px) 20px;
-  /* Background Image - Place your PNG at: assets/img/start-hero.png */
+  align-items: center;
+  justify-content: space-between; /* Header top, Card bottom */
+  padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 32px) 20px;
+  
+  /* Background Image */
   background-image:
-    linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.6) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%),
     url('/assets/img/start-hero.png'),
-    url('/assets/img/start-hero.jpg'); /* Fallback to JPG if PNG doesn't exist */
-  /* Fallback gradient if image doesn't load */
+    url('/assets/img/start-hero.jpg'); /* Fallback */
   background-color: #0a0a0f;
   background-size: cover;
-  background-position: center 30%; /* For landscape image on portrait phone - show upper-middle */
+  background-position: center center;
   background-repeat: no-repeat;
-  background-attachment: fixed; /* Parallax-like effect */
-  transition: opacity 0.5s ease, visibility 0.5s;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  min-height: 100vh;
-  min-height: 100dvh; /* Dynamic viewport height for iOS */
+  background-attachment: fixed;
+  
+  transition: opacity 0.6s ease, visibility 0.6s;
 }
 
 .start-panel.hidden {
@@ -88,176 +87,130 @@ html, body {
   pointer-events: none;
 }
 
+/* Header Typography */
+.header-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  margin-top: 10px;
+}
+
+.brand-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  opacity: 0.95;
+}
+
+.brand-subtitle {
+  margin-top: 4px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.3px;
+  max-width: 300px;
+}
+
+/* Permission Card (Glass Material) */
+.permission-card {
+  width: 100%;
+  max-width: 360px;
+  background: rgba(22, 22, 28, 0.75); /* Dark glass */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 6px; /* Padding for the container */
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  margin-bottom: 20px;
+  
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
+}
+
+/* Permission Items List */
+.perm-items {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 20px;
+  margin-bottom: 4px;
+}
+
+.perm-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.6; /* Default dim */
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.perm-item.active {
+  opacity: 1;
+  color: var(--color-blue);
+  transform: scale(1.05);
+}
+
+.perm-icon {
+  font-size: 24px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perm-text {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* CTA Button */
+.cta-button {
+  width: 100%;
+  padding: 16px;
+  border-radius: 18px;
+  border: none;
+  background: var(--color-blue);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  /* iOS button feel */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cta-button:active {
+  transform: scale(0.98);
+  filter: brightness(0.9);
+}
+
+.cta-button.success {
+  background: #fff;
+  color: #000;
+}
+
+.cta-button.hidden {
+  display: none;
+}
+
+/* ===== HUD & DEBUG ===== */
 .hud {
   position: fixed;
   inset: 0;
   z-index: var(--z-hud);
-  pointer-events: none; /* Let clicks pass through to AR */
+  pointer-events: none;
 }
 
-.fab {
-  position: fixed;
-  right: 16px;
-  bottom: calc(env(safe-area-inset-bottom) + 20px);
-  z-index: var(--z-fab);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
+.hud.hidden {
+  display: none;
 }
 
-/* ===== START PANEL CONTENT ===== */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.brand-mark-text {
-  font-size: 20px;
-}
-
-.brand-title {
-  font-weight: 600;
-  letter-spacing: .2px;
-  opacity: .95;
-  font-size: 16px;
-  color: #fff;
-}
-
-.brand-title b {
-  font-weight: 700;
-}
-
-.hero-title {
-  margin: 20px 0 32px 0;
-  font-size: clamp(28px, 10vw, 42px);
-  line-height: 1.05;
-  text-transform: uppercase;
-  font-weight: 800;
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
-  flex-shrink: 0;
-  letter-spacing: -0.5px;
-}
-
-.perm-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 24px;
-  flex-shrink: 0;
-}
-
-.pill {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 14px 18px;
-  border-radius: 14px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  color: var(--text-sec);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.pill:active {
-  transform: scale(0.98);
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.pill span:first-child {
-  flex: 1;
-  text-align: left;
-}
-
-.pill:active {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.chip {
-  margin-left: 10px;
-  font-weight: 700;
-  font-size: 16px;
-  display: inline-block;
-  min-width: 24px;
-  text-align: center;
-}
-
-/* Chip States - Use ::before to replace content */
-.chip[data-status="ok"]::before { content: '🟢'; }
-.chip[data-status="wait"]::before { content: '🟡'; }
-.chip[data-status="err"]::before { content: '🔴'; }
-.chip[data-status="unknown"]::before { content: '⚪️'; opacity: 0.5; }
-
-/* CTA Buttons */
-.cta {
-  width: 100%;
-  font-family: inherit;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.cta.primary {
-  padding: 16px 20px;
-  border-radius: 24px;
-  background: var(--primary-grad);
-  color: #fff;
-  font-weight: 700;
-  font-size: 17px;
-  border: none;
-  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.cta.primary:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.cta.primary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
-  filter: grayscale(0.8);
-}
-
-.cta.ghost {
-  margin-top: 10px;
-  padding: 12px;
-  color: #d0d9ff;
-  background: transparent;
-  border: none;
-  font-size: 14px;
-  font-weight: 500;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.cta.ghost:active {
-  opacity: 0.7;
-}
-
-/* ===== DEBUG PANEL ===== */
 .debug-panel {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 60px);
@@ -285,101 +238,23 @@ html, body {
   word-wrap: break-word;
 }
 
-/* ===== PORTRAIT/IPHONE OPTIMIZATIONS ===== */
-@media (orientation: portrait) and (max-width: 480px) {
-  .start-panel {
-    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px) 16px;
-    background-position: center 20%; /* Show upper portion of landscape image */
+/* ===== RESPONSIVE ===== */
+@media (max-width: 360px) {
+  .brand-subtitle {
+    font-size: 24px;
   }
-  
-  .hero-title {
-    font-size: clamp(24px, 9vw, 36px);
-    margin: 16px 0 24px 0;
-    line-height: 1.1;
-  }
-  
-  .brand-title {
-    font-size: 15px;
-  }
-  
-  .pill {
+  .perm-items {
     padding: 12px 16px;
-    font-size: 14px;
-  }
-  
-  .cta.primary {
-    padding: 14px 18px;
-    font-size: 16px;
-  }
-  
-  .perm-list {
-    gap: 8px;
-    margin-bottom: 20px;
   }
 }
 
-/* iPhone specific safe area adjustments */
-@supports (padding: max(0px)) {
-  .start-panel {
-    padding-left: max(20px, env(safe-area-inset-left));
-    padding-right: max(20px, env(safe-area-inset-right));
-  }
-}
-
-/* Landscape image in portrait: ensure it covers well */
-@media (orientation: portrait) {
-  .start-panel {
-    background-size: cover;
-    background-position: center 30%; /* Show upper-middle portion of landscape image */
-    /* For 1920x1080 landscape image on portrait phone, this shows the top-center area */
-  }
-}
-
-/* Ensure content doesn't get cut off on small phones */
 @media (max-height: 700px) {
-  .hero-title {
-    margin: 12px 0 20px 0;
-    font-size: clamp(22px, 8vw, 32px);
+  .start-panel {
+    justify-content: flex-end; /* Push content down on short screens */
+    gap: 40px;
   }
-  
-  .perm-list {
-    margin-bottom: 16px;
-    gap: 8px;
+  .header-container {
+    margin-top: 0;
+    margin-bottom: auto; /* Push to top */
   }
-}
-
-/* ===== EXISTING AR STYLES (Preserved) ===== */
-/* Museum Card, HUD Elements, etc. from previous version */
-
-.mx-card {
-  background: rgba(250, 250, 250, 0.96);
-  border-radius: 16px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  color: #111;
-  width: min(520px, 86vw);
-  padding: 12px 14px;
-  backdrop-filter: saturate(1.1) blur(0.5px);
-  position: absolute; /* Relative to HUD or container */
-  /* Ensure pointer events work if inside HUD container */
-  pointer-events: auto; 
-}
-
-/* Simple fix to make sure mx-cards are visible if they are injected into the scene */
-/* Note: If A-Frame injects them into the DOM, they might need higher z-index */
-/* But since we have a HUD layer, we should probably mount them there or ensure z-index is high enough */
-
-/* Additional utility classes from previous file */
-.nan-badge {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(220, 38, 38, 0.95);
-  color: white;
-  padding: 16px 24px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 700;
-  z-index: var(--z-modal);
-  pointer-events: none;
 }
