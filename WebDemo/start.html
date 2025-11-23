@@ -1,0 +1,74 @@
+<!-- v4-force-refresh -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Sightline WebAR</title>
+  <meta name="description" content="Discover Hong Kong landmarks through augmented reality">
+  
+  <!-- A-Frame + AR.js -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  
+  <link rel="stylesheet" href="styles-v3.css">
+</head>
+<body>
+
+  <!-- AR STAGE (Background Camera Layer) -->
+  <div id="ar-stage" class="ar-stage">
+    <!-- A-Frame Scene will be injected here by JS -->
+  </div>
+
+  <!-- START PANEL (Overlay) -->
+  <section id="start-panel" class="start-panel">
+    <div class="brand">
+      <!-- Placeholder for icon if not present -->
+      <span class="brand-mark-text">🎯</span>
+      <span class="brand-title">Sightline <b>WebAR</b></span>
+    </div>
+
+    <h1 class="hero-title">ON OBJECT<br/>ANSWER<br/>IN YOUR EYES</h1>
+
+    <div class="perm-list">
+      <button id="btn-perm-camera" class="perm pill">
+        <span>📷 Enable Camera</span>
+        <span class="chip" data-chip="cam" data-status="unknown"></span>
+      </button>
+      <button id="btn-perm-location" class="perm pill">
+        <span>📍 Enable Location</span>
+        <span class="chip" data-chip="loc" data-status="unknown"></span>
+      </button>
+      <button id="btn-perm-motion" class="perm pill">
+        <span>🧭 Enable Motion</span>
+        <span class="chip" data-chip="mot" data-status="unknown"></span>
+      </button>
+    </div>
+
+    <button id="btn-start-ar" class="cta primary" disabled>🚀 Start AR Experience</button>
+    <button id="btn-start-demo" class="cta ghost">🎮 Start Demo Mode</button>
+    
+    <!-- Dev Link -->
+    <div style="margin-top: 20px; font-size: 12px; opacity: 0.5; text-align: center;">
+      <a href="hologram.html" style="color: rgba(255,255,255,0.6); text-decoration: none;">🛠️ Validation Demo</a>
+    </div>
+  </section>
+
+  <!-- HUD (Overlay) -->
+  <div id="hud" class="hud">
+    <!-- Minimal HUD content can go here -->
+  </div>
+
+  <!-- DEBUG FAB -->
+  <div id="debug-fab" class="fab">?</div>
+
+  <!-- DEBUG PANEL -->
+  <div class="debug-panel">
+    <h3>Debug Log</h3>
+    <div id="dev-log" class="dev-log-content"></div>
+  </div>
+
+  <!-- App Script -->
+  <script src="app-v3.js"></script>
+</body>
+</html>
