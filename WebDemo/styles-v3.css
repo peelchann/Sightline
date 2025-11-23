@@ -67,8 +67,8 @@ html, body {
   /* Background Image - Place your PNG at: assets/img/start-hero.png */
   background-image:
     linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,.6) 100%),
-    url('./assets/img/start-hero.png'),
-    url('./assets/img/start-hero.jpg'); /* Fallback to JPG if PNG doesn't exist */
+    url('/assets/img/start-hero.png'),
+    url('/assets/img/start-hero.jpg'); /* Fallback to JPG if PNG doesn't exist */
   /* Fallback gradient if image doesn't load */
   background-color: #0a0a0f;
   background-size: cover;
