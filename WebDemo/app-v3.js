@@ -79,13 +79,18 @@ function log(msg) {
   }
 }
 
-UI.debugFab?.addEventListener('click', () => {
-  UI.debugPanel?.classList.toggle('show');
-});
-
 // ============================================================================
 // PERMISSION HANDLERS
 // ============================================================================
+
+// Setup debug panel toggle
+if (UI.debugFab) {
+  UI.debugFab.addEventListener('click', () => {
+    if (UI.debugPanel) {
+      UI.debugPanel.classList.toggle('show');
+    }
+  });
+}
 
 async function checkPersistedPermissions() {
   // Load state from localStorage
@@ -108,9 +113,9 @@ async function checkPersistedPermissions() {
 
 function updateUI() {
   // Update Chips
-  updateChip(UI.btnCam, state.perms.cam);
-  updateChip(UI.btnLoc, state.perms.loc);
-  updateChip(UI.btnMot, state.perms.mot);
+  if (UI.btnCam) updateChip(UI.btnCam, state.perms.cam);
+  if (UI.btnLoc) updateChip(UI.btnLoc, state.perms.loc);
+  if (UI.btnMot) updateChip(UI.btnMot, state.perms.mot);
 
   // Update Start Button
   const allGranted = 
@@ -118,17 +123,20 @@ function updateUI() {
     state.perms.loc === 'granted' && 
     state.perms.mot === 'granted';
   
-  UI.btnStart.disabled = !allGranted;
+  if (UI.btnStart) {
+    UI.btnStart.disabled = !allGranted;
   
-  if (allGranted && !state.ready) {
-    state.ready = true;
-    // Optional: Auto-focus start button or pulse it
-    UI.btnStart.style.transform = 'scale(1.05)';
-    setTimeout(() => UI.btnStart.style.transform = '', 200);
+    if (allGranted && !state.ready) {
+      state.ready = true;
+      // Optional: Auto-focus start button or pulse it
+      UI.btnStart.style.transform = 'scale(1.05)';
+      setTimeout(() => UI.btnStart.style.transform = '', 200);
+    }
   }
 }
 
 function updateChip(btn, status) {
+  if (!btn) return;
   const chip = btn.querySelector('.chip');
   if (chip) {
     chip.setAttribute('data-status', status === 'granted' ? 'ok' : (status === 'denied' ? 'err' : 'unknown'));
@@ -139,11 +147,15 @@ function updateChip(btn, status) {
     btn.style.background = 'rgba(74, 222, 128, 0.1)';
   } else if (status === 'denied') {
     btn.style.borderColor = '#EF4444';
+  } else {
+    btn.style.borderColor = '';
+    btn.style.background = '';
   }
 }
 
 // --- CAMERA ---
-UI.btnCam.onclick = async () => {
+if (UI.btnCam) {
+  UI.btnCam.onclick = async () => {
   updateChip(UI.btnCam, 'wait');
   try {
     // Request stream to verify permission
@@ -166,10 +178,12 @@ UI.btnCam.onclick = async () => {
     alert('Camera blocked. Please enable in Settings.');
   }
   updateUI();
-};
+  };
+}
 
 // --- LOCATION ---
-UI.btnLoc.onclick = () => {
+if (UI.btnLoc) {
+  UI.btnLoc.onclick = () => {
   updateChip(UI.btnLoc, 'wait');
   if (!navigator.geolocation) {
     state.perms.loc = 'denied';
@@ -192,12 +206,14 @@ UI.btnLoc.onclick = () => {
       alert('Location denied. Please allow "While Using App" in Settings.');
       updateUI();
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { enableHighAccuracy: true, timeout: 10000     }
   );
-};
+  };
+}
 
 // --- MOTION ---
-UI.btnMot.onclick = async () => {
+if (UI.btnMot) {
+  UI.btnMot.onclick = async () => {
   updateChip(UI.btnMot, 'wait');
   
   // iOS 13+ Requirement
@@ -229,13 +245,15 @@ UI.btnMot.onclick = async () => {
     window.addEventListener('deviceorientation', handleOrientation, true);
   }
   updateUI();
-};
+  };
+}
 
 // ============================================================================
 // CORE ACTIONS
 // ============================================================================
 
-UI.btnStart.onclick = async () => {
+if (UI.btnStart) {
+  UI.btnStart.onclick = async () => {
   if (UI.btnStart.disabled) return;
   
   log('System: Starting AR...');
@@ -245,14 +263,17 @@ UI.btnStart.onclick = async () => {
   
   // Init AR
   await initARStage();
-};
+  };
+}
 
-UI.btnDemo.onclick = async () => {
+if (UI.btnDemo) {
+  UI.btnDemo.onclick = async () => {
   log('System: Starting Demo Mode...');
   state.demo = true;
-  UI.panel.classList.add('hidden');
+  if (UI.panel) UI.panel.classList.add('hidden');
   await initARStage({ demo: true });
-};
+  };
+}
 
 // ============================================================================
 // AR ENGINE
@@ -386,4 +407,13 @@ function startSensorLoop() {
 // INIT
 // ============================================================================
 
-checkPersistedPermissions();
+// Wait for DOM to be ready before accessing elements
+window.addEventListener('DOMContentLoaded', () => {
+  log('App: Initializing...');
+  
+  // Initialize UI state
+  checkPersistedPermissions();
+  updateUI();
+  
+  log('App: Ready');
+});

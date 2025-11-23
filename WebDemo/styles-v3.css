@@ -64,11 +64,15 @@ html, body {
   display: grid;
   grid-template-rows: auto auto 1fr auto auto;
   padding: calc(env(safe-area-inset-top) + 20px) 24px calc(env(safe-area-inset-bottom) + 20px) 24px;
-  background:
+  /* Background Image - Place your image at: assets/img/start-hero.jpg */
+  background-image:
     linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.55)),
-    linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); /* Fallback/Placeholder Gradient */
+    url('./assets/img/start-hero.jpg');
+  /* Fallback gradient if image doesn't load */
+  background-color: #0a0a0f;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   transition: opacity 0.5s ease, visibility 0.5s;
 }
 
@@ -120,6 +124,11 @@ html, body {
   letter-spacing: .2px;
   opacity: .95;
   font-size: 18px;
+  color: #fff;
+}
+
+.brand-title b {
+  font-weight: 700;
 }
 
 .hero-title {
@@ -128,7 +137,9 @@ html, body {
   line-height: 1.02;
   text-transform: uppercase;
   font-weight: 800;
-  align-self: center; /* Center vertically in its grid row if needed */
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  align-self: center;
 }
 
 .perm-list {
@@ -154,7 +165,12 @@ html, body {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.pill span:first-child {
+  flex: 1;
   text-align: left;
 }
 
@@ -165,14 +181,17 @@ html, body {
 .chip {
   margin-left: 10px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 16px;
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
 }
 
-/* Chip States */
-.chip[data-status="ok"]::after { content: '🟢'; }
-.chip[data-status="wait"]::after { content: '🟡'; }
-.chip[data-status="err"]::after { content: '🔴'; }
-.chip[data-status="unknown"]::after { content: '⚪️'; opacity: 0.5; }
+/* Chip States - Use ::before to replace content */
+.chip[data-status="ok"]::before { content: '🟢'; }
+.chip[data-status="wait"]::before { content: '🟡'; }
+.chip[data-status="err"]::before { content: '🔴'; }
+.chip[data-status="unknown"]::before { content: '⚪️'; opacity: 0.5; }
 
 /* CTA Buttons */
 .cta {
