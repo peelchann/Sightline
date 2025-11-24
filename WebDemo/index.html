@@ -1,73 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Sightline WebAR</title>
-  <meta name="description" content="Immersive guides for your world">
-  
-  <!-- A-Frame + AR.js -->
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  
-  <link rel="stylesheet" href="styles-v3.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sightline AR</title>
+    <style>
+        /* --- CSS Variables & Reset --- */
+        :root {
+            --primary-color: #00f2ff; /* Electric Blue */
+            --primary-hover: #00c8d4;
+            --text-color: #ffffff;
+            --bg-dark: #0a0a0a;
+            --glass-bg: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-blur: 20px;
+            --transition-speed: 0.4s;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-dark);
+            color: var(--text-color);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Prevent scrolling for PWA feel */
+        }
+
+        /* --- Utility Classes --- */
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .fade-in {
+            animation: fadeIn var(--transition-speed) ease-in-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Common UI Elements --- */
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 50px; /* Capsule shape */
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.6);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-disabled {
+            background: #444;
+            color: #888;
+            box-shadow: none;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* --- Page 1: Landing Page --- */
+        #landing-page {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            /* Using existing hero image */
+            background-image: url('assets/img/start-hero.png'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+
+        /* Dark overlay for text readability */
+        #landing-page::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%);
+            z-index: 1;
+        }
+
+        .landing-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .brand-title {
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            /* Metallic Gradient Text */
+            background: linear-gradient(to bottom, #ffffff 0%, #b0bec5 50%, #cfd8dc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            /* Glowing Shadow */
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+            text-transform: uppercase;
+            letter-spacing: -1px;
+        }
+
+        .brand-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 60px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* --- Page 2: Permissions Page --- */
+        #permissions-page {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #000; /* Fallback */
+            background: linear-gradient(135deg, #1a1a1a 0%, #050505 100%);
+        }
+
+        .glass-card {
+            width: 90%;
+            max-width: 400px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .perm-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .perm-desc {
+            font-size: 0.95rem;
+            color: #aaa;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .perm-list {
+            width: 100%;
+            margin-bottom: 40px;
+        }
+
+        .perm-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .perm-item:last-child {
+            border-bottom: none;
+        }
+
+        .perm-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .perm-icon {
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .perm-label {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        /* Custom Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        
+        input:checked + .slider:after {
+             /* Optional glow */
+        }
+
+        /* --- Page 3: Experience Page --- */
+        #experience-page {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            background-color: #000; /* Placeholder for AR Camera feed */
+            overflow: hidden;
+        }
+
+        /* AR Canvas Container */
+        .ar-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        /* Pulsing Border Effect to signify active scanning/AR */
+        .ar-border-overlay {
+            position: absolute;
+            top: 20px; left: 20px; right: 20px; bottom: 20px;
+            border: 2px solid rgba(0, 242, 255, 0.3);
+            border-radius: 20px;
+            pointer-events: none; /* Pass through touches */
+            animation: borderPulse 2s infinite;
+            z-index: 10;
+        }
+        
+        @keyframes borderPulse {
+            0% { box-shadow: 0 0 10px rgba(0, 242, 255, 0.1); border-color: rgba(0, 242, 255, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(0, 242, 255, 0.5); border-color: rgba(0, 242, 255, 0.8); }
+            100% { box-shadow: 0 0 10px rgba(0, 242, 255, 0.1); border-color: rgba(0, 242, 255, 0.3); }
+        }
+
+        /* Placeholder Target Image */
+        #ar-target-image {
+            max-width: 80%;
+            max-height: 60%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(255,255,255,0.2));
+            opacity: 0.8;
+            transition: opacity 0.5s;
+        }
+
+        .ar-ui-layer {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 20;
+        }
+
+        .status-pill {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 480px) {
+            .brand-title { font-size: 3rem; }
+            .glass-card { width: 95%; padding: 30px 20px; }
+        }
+    </style>
 </head>
 <body>
 
-  <!-- AR STAGE (Background Camera Layer) -->
-  <div id="ar-stage" class="ar-stage">
-    <!-- A-Frame Scene will be injected here by JS -->
-  </div>
-
-  <!-- START PANEL (Overlay) -->
-  <section id="start-panel" class="start-panel">
-    
-    <!-- Header -->
-    <div class="header-container">
-      <div class="brand-title">Sightline WebAR</div>
-      <div class="brand-subtitle">Immersive guides for your world</div>
-    </div>
-
-    <!-- Permission Card -->
-    <div class="permission-card">
-      <div class="perm-items">
-        <div class="perm-item" id="perm-item-camera">
-          <span class="perm-icon">📷</span>
-          <span class="perm-text">Camera</span>
+    <!-- =========================================
+         PAGE 1: LANDING PAGE
+    ========================================= -->
+    <section id="landing-page">
+        <div class="landing-content fade-in">
+            <h1 class="brand-title">Sightline<br>AR</h1>
+            <p class="brand-subtitle">Unlock the history hidden in plain sight.</p>
+            <button id="btn-start" class="btn-primary">Start AR Experience</button>
         </div>
-        <div class="perm-item" id="perm-item-location">
-          <span class="perm-icon">📍</span>
-          <span class="perm-text">Location</span>
+    </section>
+
+    <!-- =========================================
+         PAGE 2: PERMISSIONS PAGE
+    ========================================= -->
+    <section id="permissions-page" class="hidden">
+        <div class="glass-card fade-in">
+            <h2 class="perm-title">Enable Access</h2>
+            <p class="perm-desc">To overlay history on the real world, Sightline needs the following permissions.</p>
+            
+            <div class="perm-list">
+                <!-- Camera Permission -->
+                <div class="perm-item">
+                    <div class="perm-info">
+                        <div class="perm-icon">📷</div>
+                        <span class="perm-label">Camera</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-camera">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Location Permission -->
+                <div class="perm-item">
+                    <div class="perm-info">
+                        <div class="perm-icon">📍</div>
+                        <span class="perm-label">Location</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-location">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Motion Permission -->
+                <div class="perm-item">
+                    <div class="perm-info">
+                        <div class="perm-icon">🧭</div>
+                        <span class="perm-label">Motion</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-motion">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="btn-confirm-perms" class="btn-primary btn-disabled">Confirm Permissions & Launch</button>
         </div>
-        <div class="perm-item" id="perm-item-motion">
-          <span class="perm-icon">🧭</span>
-          <span class="perm-text">Motion</span>
+    </section>
+
+    <!-- =========================================
+         PAGE 3: AR EXPERIENCE PAGE
+    ========================================= -->
+    <section id="experience-page" class="hidden">
+        <div class="ar-container">
+            <!-- Pulsing border to indicate active AR state -->
+            <div class="ar-border-overlay"></div>
+            
+            <!-- Placeholder for the AR Target/Content -->
+            <!-- Replace src with actual target image later -->
+            <img id="ar-target-image" src="https://placehold.co/400x400/000000/FFFFFF/png?text=AR+Target+Image" alt="AR Target Image">
+            
+            <div class="ar-ui-layer">
+                <div class="status-pill">Scanning Environment...</div>
+            </div>
         </div>
-      </div>
+    </section>
 
-      <!-- Single Action Button -->
-      <button id="btn-enable-access" class="cta-button">Enable Access</button>
-      <button id="btn-enter-experience" class="cta-button success hidden">Enter Experience</button>
-    </div>
+    <script>
+        /* --- Logic for 3-Step PWA Flow --- */
+        
+        // Elements
+        const landingPage = document.getElementById('landing-page');
+        const permissionsPage = document.getElementById('permissions-page');
+        const experiencePage = document.getElementById('experience-page');
+        
+        const btnStart = document.getElementById('btn-start');
+        const btnConfirmPerms = document.getElementById('btn-confirm-perms');
+        
+        // Permission Inputs
+        const permCamera = document.getElementById('perm-camera');
+        const permLocation = document.getElementById('perm-location');
+        const permMotion = document.getElementById('perm-motion');
+        
+        // State
+        const pages = [landingPage, permissionsPage, experiencePage];
+        
+        // --- Navigation Functions ---
+        function showPage(pageElement) {
+            // Hide all pages
+            pages.forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Show target page
+            pageElement.classList.remove('hidden');
+            
+            // Trigger reflow/anim if needed (fade-in class handles generic entry)
+        }
 
-    <!-- Debug Hidden (Triple tap area or similar if needed, for now just hidden) -->
-    <!-- <div id="debug-trigger" style="position:fixed;top:0;right:0;width:50px;height:50px;z-index:9999;"></div> -->
+        // --- Page 1 Logic ---
+        btnStart.addEventListener('click', () => {
+            showPage(permissionsPage);
+        });
 
-  </section>
+        // --- Page 2 Logic ---
+        function checkAllPermissions() {
+            if (permCamera.checked && permLocation.checked && permMotion.checked) {
+                btnConfirmPerms.classList.remove('btn-disabled');
+            } else {
+                btnConfirmPerms.classList.add('btn-disabled');
+            }
+        }
 
-  <!-- HUD (Overlay - hidden initially) -->
-  <div id="hud" class="hud hidden">
-    <!-- Minimal HUD content -->
-  </div>
+        // Listen for toggle changes
+        [permCamera, permLocation, permMotion].forEach(input => {
+            input.addEventListener('change', checkAllPermissions);
+        });
 
-  <!-- DEBUG PANEL (Hidden by default) -->
-  <div class="debug-panel">
-    <h3>Debug Log</h3>
-    <div id="dev-log" class="dev-log-content"></div>
-  </div>
+        btnConfirmPerms.addEventListener('click', () => {
+            // In a real app, this is where we would request navigator.mediaDevices.getUserMedia, etc.
+            console.log("Permissions confirmed. Launching AR...");
+            launchExperience();
+        });
 
-  <!-- App Script -->
-  <script src="app-v3.js"></script>
+        // --- Page 3 Logic ---
+        function launchExperience() {
+            showPage(experiencePage);
+            
+            // Simulate AR Initialization
+            const statusPill = document.querySelector('.status-pill');
+            setTimeout(() => {
+                statusPill.textContent = "Target Found";
+                statusPill.style.color = "#00f2ff";
+                statusPill.style.borderColor = "#00f2ff";
+            }, 2000);
+        }
+
+        // --- Init ---
+        // Ensure correct initial state
+        showPage(landingPage);
+
+    </script>
 </body>
 </html>
-
