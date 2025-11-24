@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/WebDemo/index.html" },
+    { "source": "/(params)(.*)", "destination": "/WebDemo/index.html" },
+    { "source": "/(.*)", "destination": "/WebDemo/$1" }
+  ]
+}
+
