@@ -1,6 +1,5 @@
 /**
- * Sightline WebAR - V3.2 Reduction Flow
- * Single-stream permission sequence with minimalist UI
+ * Sightline WebAR - V3.3 3-Page PWA Flow
  */
 
 // ============================================================================
@@ -12,14 +11,6 @@ const CONFIG = {
   R_VIS: 1500,
   DEBUG: new URLSearchParams(window.location.search).has('debug')
 };
-
-const POIS = [
-  { id: 'clock-tower', name: 'Clock Tower', lat: 22.2946, lng: 114.1699, description: 'Former railway terminus', color: '#3B82F6' },
-  { id: 'star-ferry', name: 'Star Ferry', lat: 22.2937, lng: 114.1703, description: 'Iconic crossing', color: '#22C55E' },
-  { id: 'ifc', name: 'IFC Two', lat: 22.2855, lng: 114.1588, description: '412m Skyscraper', color: '#3B82F6' },
-  { id: 'icc', name: 'ICC', lat: 22.3069, lng: 114.1617, description: '484m Skyscraper', color: '#3B82F6' },
-  { id: 'mplus', name: 'M+ Museum', lat: 22.3030, lng: 114.1590, description: 'Visual culture', color: '#A855F7' }
-];
 
 // ============================================================================
 // STATE
@@ -35,7 +26,7 @@ const state = {
     heading: null,
     gps: null
   },
-  isDemo: false
+  currentPage: 'landing'
 };
 
 // ============================================================================
@@ -43,8 +34,12 @@ const state = {
 // ============================================================================
 
 const UI = {
-  panel: document.querySelector('.start-panel'),
   stage: document.getElementById('ar-stage'),
+  
+  // Pages
+  pageLanding: document.getElementById('landing-page'),
+  pagePerms: document.getElementById('permissions-page'),
+  pageExp: document.getElementById('experience-page'),
   
   // Permission Items
   itemCam: document.getElementById('perm-item-camera'),
@@ -52,16 +47,16 @@ const UI = {
   itemMot: document.getElementById('perm-item-motion'),
   
   // Buttons
+  btnStart: document.getElementById('btn-start'),
   btnEnable: document.getElementById('btn-enable-access'),
   btnEnter: document.getElementById('btn-enter-experience'),
   
   // Debug
-  debugPanel: document.querySelector('.debug-panel'),
   debugLog: document.getElementById('dev-log')
 };
 
 // ============================================================================
-// UTILS
+// UTILS & NAVIGATION
 // ============================================================================
 
 function log(msg) {
@@ -72,14 +67,28 @@ function log(msg) {
   }
 }
 
+function showPage(pageName) {
+  state.currentPage = pageName;
+  
+  // Hide all
+  UI.pageLanding.classList.add('hidden');
+  UI.pagePerms.classList.add('hidden');
+  UI.pageExp.classList.add('hidden');
+  
+  // Show target
+  if (pageName === 'landing') UI.pageLanding.classList.remove('hidden');
+  if (pageName === 'perms') UI.pagePerms.classList.remove('hidden');
+  if (pageName === 'experience') UI.pageExp.classList.remove('hidden');
+}
+
 function setPermState(type, granted) {
   state.perms[type] = granted;
-  const el = UI[`item${type.charAt(0).toUpperCase() + type.slice(1,3)}`]; // itemCam, itemLoc...
+  const el = UI[`item${type.charAt(0).toUpperCase() + type.slice(1,3)}`];
   
   if (el && granted) {
     el.classList.add('active');
     const icon = el.querySelector('.perm-icon');
-    if (icon) icon.textContent = '✓'; // Checkmark
+    if (icon) icon.textContent = '✓';
   }
 }
 
@@ -99,13 +108,10 @@ async function runPermissionSequence() {
   try {
     log('Req: Camera...');
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    stream.getTracks().forEach(t => t.stop()); // Release immediately
+    stream.getTracks().forEach(t => t.stop());
     setPermState('camera', true);
-    log('Ack: Camera');
   } catch (e) {
-    log('Err: Camera denied');
-    alert('Camera access is required. Please enable in Settings.');
-    UI.btnEnable.textContent = 'Retry Access';
+    alert('Camera access required.');
     UI.btnEnable.disabled = false;
     return;
   }
@@ -114,60 +120,39 @@ async function runPermissionSequence() {
   try {
     log('Req: Location...');
     await new Promise((resolve, reject) => {
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-          state.sensors.gps = pos;
-          resolve();
-        },
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { state.sensors.gps = pos; resolve(); },
         (err) => reject(err),
         { enableHighAccuracy: true, timeout: 10000 }
-  );
-  });
+      );
+    });
     setPermState('location', true);
-    log('Ack: Location');
   } catch (e) {
-    log('Err: Location denied');
-    alert('Location access is required for AR.');
-    UI.btnEnable.textContent = 'Retry Access';
+    alert('Location access required.');
     UI.btnEnable.disabled = false;
     return;
   }
   
-  // 3. Motion (iOS Guard)
+  // 3. Motion
   try {
     log('Req: Motion...');
     if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
       const permission = await DeviceMotionEvent.requestPermission();
-      if (permission === 'granted') {
-        setPermState('motion', true);
-        log('Ack: Motion (iOS)');
-  } else {
-        throw new Error('iOS Motion denied');
-      }
-  } else {
-      // Non-iOS or older
+      if (permission === 'granted') setPermState('motion', true);
+      else throw new Error('Denied');
+    } else {
       setPermState('motion', true);
-      log('Ack: Motion (Implicit)');
     }
   } catch (e) {
-    log('Err: Motion denied');
-    alert('Motion sensors blocked.');
-    UI.btnEnable.textContent = 'Retry Access';
+    alert('Motion sensors required.');
     UI.btnEnable.disabled = false;
     return;
   }
   
-  // Done?
   if (checkAllGranted()) {
-    showEnterButton();
+    UI.btnEnable.classList.add('hidden');
+    UI.btnEnter.classList.remove('hidden');
   }
-}
-
-function showEnterButton() {
-  UI.btnEnable.classList.add('hidden');
-  UI.btnEnter.classList.remove('hidden');
-  
-  // Auto-focus animation or sound could go here
 }
 
 // ============================================================================
@@ -175,161 +160,83 @@ function showEnterButton() {
 // ============================================================================
 
 async function enterExperience() {
-  log('System: Entering AR...');
-  
-  // Fade out start panel
-  UI.panel.classList.add('hidden');
-  document.getElementById('hud').classList.remove('hidden');
-
-  // Initialize A-Frame
+  log('System: Launching AR...');
+  showPage('experience');
   initARScene();
 }
 
 function initARScene() {
-  UI.stage.innerHTML = ''; // Clear placeholder
+  UI.stage.innerHTML = ''; 
 
   const scene = document.createElement('a-scene');
   scene.setAttribute('embedded', '');
   scene.setAttribute('vr-mode-ui', 'enabled: false');
   scene.setAttribute('loading-screen', 'enabled: false');
   scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; precision: medium; antialias: true; alpha: true;');
-  
-  // AR.js config
   scene.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
   
-  // Camera
   const cam = document.createElement('a-camera');
   cam.setAttribute('gps-camera', 'minDistance: 20; maxDistance: 5000;');
   cam.setAttribute('rotation-reader', '');
   scene.appendChild(cam);
 
-  // Add listener for GPS updates to load content dynamically
   let contentLoaded = false;
   scene.addEventListener('gps-camera-update-position', (e) => {
     if (!contentLoaded) {
-      log(`GPS Acquired: ${e.detail.position.longitude}, ${e.detail.position.latitude}`);
-      
-      // IMMEDIATE SPAWN: Bypass GPS distance checks
-      // Spawn content right in front of the user
-      spawnContentInFrontOfUser(scene, cam);
-      
+      log('GPS Signal Active. Spawning Content.');
+      spawnContentInFrontOfUser(scene);
       contentLoaded = true;
+      
+      // Update Status Pill
+      const pill = document.querySelector('.status-pill');
+      if(pill) {
+          pill.textContent = "Target Locked";
+          pill.style.borderColor = "#00f2ff";
+          pill.style.color = "#00f2ff";
+      }
     }
   });
 
   UI.stage.appendChild(scene);
-  
-  // Sensor Listeners
-  window.addEventListener('deviceorientation', (e) => {
-    // Keep sensor warm
-    state.sensors.heading = e.webkitCompassHeading || (360 - e.alpha);
-  }, true);
 }
 
-function spawnContentInFrontOfUser(scene, camera) {
-  log('Spawning "Crystal Card" in front of user (Luminous Reality)...');
-
-  // 1. Create the Entity Wrapper
-  const wrapper = document.createElement('a-entity');
-  
-  // Position: 0 0 -2 (2 meters directly in front in camera space)
-  // However, since gps-camera controls the camera, "0 0 0" is the user's world position.
-  // To spawn "in front" effectively in a GPS scene without complex math, 
-  // we attach it to the camera initially OR we use a fixed distance.
-  // BETTER APPROACH: We use HTML Overlay for the "Crystal Card" to guarantee readability.
-  // But the prompt asks for AR effect. Let's do a "World-Locked" entity that spawns at current location.
-  
-  // Since we are inside the `gps-camera-update-position` event, we know the user's lat/long.
-  // But we just want to see it immediately.
-  
-  // We will cheat: Add an entity with `position="0 0 -3"` relative to the CAMERA, 
-  // then detach it to world space? No, simpler:
-  // Just put it in the scene. AR.js moves the camera, not the world.
-  // So `0 0 -2` is 2 meters south? No.
-  
-  // In AR.js gps-camera, the camera is at (0,0,0) initially, then moves.
-  // We want to spawn the content relative to the *current* camera position and rotation.
-  // Since this is complex in A-Frame without specific components, we'll use a "Head-Locked"
-  // approach that drifts slightly (as per design system Type A) or simply fixed in screen space.
-  
-  // PLAN B: HTML Overlay with 3D Context
-  // We spawn the HTML "Crystal Card" directly on screen (Screen Space).
-  // We spawn a "Ghost Mesh" in 3D space around the user.
-  
-  createCrystalCardHTML();
-  createGhostMesh3D(scene);
-}
-
-function createCrystalCardHTML() {
+function spawnContentInFrontOfUser(scene) {
+  // 1. HTML Overlay (Guaranteed Visibility)
   const card = document.createElement('div');
   card.className = 'crystal-card fade-in';
-  card.style.top = '20%';
+  card.style.top = '25%';
   card.style.left = '50%';
-  card.style.transform = 'translateX(-50%)'; // Center horizontally
+  card.style.transform = 'translateX(-50%)';
   
   card.innerHTML = `
     <div class="icon">🏛️</div>
-    <h2>Sightline Demo</h2>
-    <p>This is a "Crystal Clear" AR overlay using the Luminous Reality design system.</p>
-    <p style="font-size: 0.8rem; margin-top: 5px; color: #00f2ff;">▼ GPS Bypass Active</p>
+    <h2>Sightline AR</h2>
+    <p>Luminous Reality System Active.</p>
+    <p style="font-size: 0.8rem; margin-top: 5px; color: #00f2ff;">▼ Crystal Clear Mode</p>
   `;
-  
   UI.stage.appendChild(card);
-}
 
-function createGhostMesh3D(scene) {
-  // We can't easily do Three.js custom geometry inside A-Frame without a custom component.
-  // We'll use A-Frame primitives to simulate the "Ghost Mesh" wireframe effect.
-  
-  // Create a wireframe box surrounding the user
+  // 2. Ghost Mesh (3D Context)
   const box = document.createElement('a-box');
-  box.setAttribute('position', '0 0 -5'); // 5 meters away (approx North)
-  box.setAttribute('width', '4');
-  box.setAttribute('height', '4');
-  box.setAttribute('depth', '4');
-  box.setAttribute('material', 'color: #ffffff; wireframe: true; opacity: 0.3; transparent: true;');
+  box.setAttribute('position', '0 0 -4');
+  box.setAttribute('material', 'color: #fff; wireframe: true; opacity: 0.3;');
   box.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 20000; easing: linear;');
-  
   scene.appendChild(box);
-  
-  // Add a second "Inner" box for complexity
-  const innerBox = document.createElement('a-box');
-  innerBox.setAttribute('position', '0 0 -5');
-  innerBox.setAttribute('width', '2');
-  innerBox.setAttribute('height', '2');
-  innerBox.setAttribute('depth', '2');
-  innerBox.setAttribute('material', 'color: #00f2ff; wireframe: true; opacity: 0.5; transparent: true;');
-  innerBox.setAttribute('animation', 'property: rotation; to: 360 0 0; loop: true; dur: 15000; easing: linear;');
-  
-  scene.appendChild(innerBox);
 }
 
 // ============================================================================
-// EVENT WIRING
+// INIT
 // ============================================================================
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Wire Buttons
-  if (UI.btnEnable) {
-    UI.btnEnable.onclick = runPermissionSequence;
-  }
-  
-  if (UI.btnEnter) {
-    UI.btnEnter.onclick = enterExperience;
-  }
+  // Navigation
+  UI.btnStart.onclick = () => showPage('perms');
+  UI.btnEnable.onclick = runPermissionSequence;
+  UI.btnEnter.onclick = enterExperience;
 
-  // Check if already granted (optional - maybe skip straight to Enter?)
-  // For "Reduction", we usually prefer the user to tap at least once to ensure Intent.
-  // We can check localstorage to auto-fill checkmarks but still require "Enter".
+  // Check Prev Perms
   const pCam = localStorage.getItem('sl_perm_cam');
-  const pLoc = localStorage.getItem('sl_perm_loc');
-  const pMot = localStorage.getItem('sl_perm_mot');
+  // ... (restore logic if needed)
   
-  if (pCam === 'granted') setPermState('camera', true);
-  if (pLoc === 'granted') setPermState('location', true);
-  if (pMot === 'granted') setPermState('motion', true);
-  
-  if (checkAllGranted()) {
-    showEnterButton();
-  }
+  showPage('landing');
 });

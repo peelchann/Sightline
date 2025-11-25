@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sightline AR</title>
-    <!-- PWA Deployment Trigger -->
     <meta name="description" content="Immersive guides for your world">
     
     <!-- A-Frame + AR.js -->
@@ -15,22 +14,29 @@
 </head>
 <body>
 
-    <!-- AR STAGE (Background Camera Layer) -->
+    <!-- AR STAGE (Background Camera Layer - Always Present but z-indexed) -->
     <div id="ar-stage" class="ar-stage">
         <!-- A-Frame Scene will be injected here by JS -->
     </div>
 
-    <!-- START PANEL (Overlay) -->
-    <section id="start-panel" class="start-panel">
-        
-        <!-- Header -->
-        <div class="header-container">
-            <div class="brand-title">Sightline WebAR</div>
-            <div class="brand-subtitle">Immersive guides for your world</div>
+    <!-- PAGE 1: LANDING PAGE -->
+    <section id="landing-page" class="start-panel">
+        <div class="landing-content fade-in">
+            <div class="header-container">
+                <h1 class="brand-title">Sightline<br>AR</h1>
+                <p class="brand-subtitle">Unlock the history hidden in plain sight.</p>
+            </div>
+            <button id="btn-start" class="cta-button">Start AR Experience</button>
         </div>
+    </section>
 
-        <!-- Permission Card -->
-        <div class="permission-card">
+    <!-- PAGE 2: PERMISSIONS PAGE -->
+    <section id="permissions-page" class="start-panel hidden">
+        <div class="header-container">
+            <div class="brand-title">Setup</div>
+        </div>
+        
+        <div class="permission-card fade-in">
             <div class="perm-items">
                 <div class="perm-item" id="perm-item-camera">
                     <span class="perm-icon">📷</span>
@@ -46,19 +52,21 @@
                 </div>
             </div>
 
-            <!-- Single Action Button -->
+            <!-- Permission Buttons -->
             <button id="btn-enable-access" class="cta-button">Enable Access</button>
-            <button id="btn-enter-experience" class="cta-button success hidden">Enter Experience</button>
+            <button id="btn-enter-experience" class="cta-button success hidden">Launch</button>
         </div>
-
     </section>
 
-    <!-- HUD (Overlay - hidden initially) -->
-    <div id="hud" class="hud hidden">
-        <!-- 2D Compass HUD will be injected here via JS -->
-    </div>
+    <!-- PAGE 3: EXPERIENCE PAGE (Overlay on AR) -->
+    <section id="experience-page" class="hud hidden">
+        <!-- 2D Compass HUD or Status Pills will be injected here -->
+        <div class="ar-ui-layer">
+            <div class="status-pill">Initializing...</div>
+        </div>
+    </section>
 
-    <!-- DEBUG PANEL (Hidden by default) -->
+    <!-- DEBUG PANEL -->
     <div class="debug-panel">
         <h3>Debug Log</h3>
         <div id="dev-log" class="dev-log-content"></div>
