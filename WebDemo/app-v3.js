@@ -208,16 +208,14 @@ function initARScene() {
   scene.addEventListener('gps-camera-update-position', (e) => {
     if (!contentLoaded) {
       log(`GPS Acquired: ${e.detail.position.longitude}, ${e.detail.position.latitude}`);
-      loadTuenMunContent(scene);
+      
+      // IMMEDIATE SPAWN: Bypass GPS distance checks
+      // Spawn content right in front of the user
+      spawnContentInFrontOfUser(scene, cam);
+      
       contentLoaded = true;
     }
   });
-
-  // Add static POIs (Legacy/Global) - Optional, keeping for now or can remove if Tuen Mun is exclusive
-  // POIS.forEach(poi => {
-  //   const el = createPOI(poi);
-  //   scene.appendChild(el);
-  // });
 
   UI.stage.appendChild(scene);
   
@@ -228,54 +226,82 @@ function initARScene() {
   }, true);
 }
 
-function loadTuenMunContent(scene) {
-  log('Loading Tuen Mun Content...');
+function spawnContentInFrontOfUser(scene, camera) {
+  log('Spawning "Crystal Card" in front of user (Luminous Reality)...');
 
-  // POI 1: Tuen Mun Government School
-  const poi1 = document.createElement('a-text');
-  poi1.setAttribute('value', 'Tuen Mun Govt. School');
-  poi1.setAttribute('look-at', '[gps-camera]');
-  poi1.setAttribute('color', '#FFFFFF');
-  poi1.setAttribute('scale', '10 10 10'); // Large visibility
-  poi1.setAttribute('align', 'center');
-  poi1.setAttribute('gps-entity-place', 'latitude: 22.3916; longitude: 113.9765;');
-  scene.appendChild(poi1);
-
-  // POI 2: Jockey Club
-  const poi2 = document.createElement('a-text');
-  poi2.setAttribute('value', 'Jockey Club');
-  poi2.setAttribute('look-at', '[gps-camera]');
-  poi2.setAttribute('color', '#FFFF00'); // Yellow
-  poi2.setAttribute('scale', '10 10 10');
-  poi2.setAttribute('align', 'center');
-  poi2.setAttribute('gps-entity-place', 'latitude: 22.3925; longitude: 113.9770;');
-  scene.appendChild(poi2);
-
-  log('Tuen Mun POIs added.');
+  // 1. Create the Entity Wrapper
+  const wrapper = document.createElement('a-entity');
+  
+  // Position: 0 0 -2 (2 meters directly in front in camera space)
+  // However, since gps-camera controls the camera, "0 0 0" is the user's world position.
+  // To spawn "in front" effectively in a GPS scene without complex math, 
+  // we attach it to the camera initially OR we use a fixed distance.
+  // BETTER APPROACH: We use HTML Overlay for the "Crystal Card" to guarantee readability.
+  // But the prompt asks for AR effect. Let's do a "World-Locked" entity that spawns at current location.
+  
+  // Since we are inside the `gps-camera-update-position` event, we know the user's lat/long.
+  // But we just want to see it immediately.
+  
+  // We will cheat: Add an entity with `position="0 0 -3"` relative to the CAMERA, 
+  // then detach it to world space? No, simpler:
+  // Just put it in the scene. AR.js moves the camera, not the world.
+  // So `0 0 -2` is 2 meters south? No.
+  
+  // In AR.js gps-camera, the camera is at (0,0,0) initially, then moves.
+  // We want to spawn the content relative to the *current* camera position and rotation.
+  // Since this is complex in A-Frame without specific components, we'll use a "Head-Locked"
+  // approach that drifts slightly (as per design system Type A) or simply fixed in screen space.
+  
+  // PLAN B: HTML Overlay with 3D Context
+  // We spawn the HTML "Crystal Card" directly on screen (Screen Space).
+  // We spawn a "Ghost Mesh" in 3D space around the user.
+  
+  createCrystalCardHTML();
+  createGhostMesh3D(scene);
 }
 
-function createPOI(poi) {
-  const el = document.createElement('a-entity');
-  el.setAttribute('gps-entity-place', `latitude: ${poi.lat}; longitude: ${poi.lng}`);
+function createCrystalCardHTML() {
+  const card = document.createElement('div');
+  card.className = 'crystal-card fade-in';
+  card.style.top = '20%';
+  card.style.left = '50%';
+  card.style.transform = 'translateX(-50%)'; // Center horizontally
   
-  // Simple Pin
-  const pin = document.createElement('a-entity');
-  pin.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.2; radiusTop: 1; height: 3; segmentsRadial: 8');
-  pin.setAttribute('material', `color: ${poi.color}; opacity: 0.9;`);
-  pin.setAttribute('position', '0 30 0');
-  pin.setAttribute('rotation', '180 0 0');
+  card.innerHTML = `
+    <div class="icon">🏛️</div>
+    <h2>Sightline Demo</h2>
+    <p>This is a "Crystal Clear" AR overlay using the Luminous Reality design system.</p>
+    <p style="font-size: 0.8rem; margin-top: 5px; color: #00f2ff;">▼ GPS Bypass Active</p>
+  `;
   
-  // Label
-  const text = document.createElement('a-text');
-  text.setAttribute('value', poi.name);
-  text.setAttribute('scale', '8 8 8');
-  text.setAttribute('align', 'center');
-  text.setAttribute('position', '0 5 0');
-  text.setAttribute('look-at', '[camera]');
+  UI.stage.appendChild(card);
+}
 
-  el.appendChild(pin);
-  el.appendChild(text);
-  return el;
+function createGhostMesh3D(scene) {
+  // We can't easily do Three.js custom geometry inside A-Frame without a custom component.
+  // We'll use A-Frame primitives to simulate the "Ghost Mesh" wireframe effect.
+  
+  // Create a wireframe box surrounding the user
+  const box = document.createElement('a-box');
+  box.setAttribute('position', '0 0 -5'); // 5 meters away (approx North)
+  box.setAttribute('width', '4');
+  box.setAttribute('height', '4');
+  box.setAttribute('depth', '4');
+  box.setAttribute('material', 'color: #ffffff; wireframe: true; opacity: 0.3; transparent: true;');
+  box.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 20000; easing: linear;');
+  
+  scene.appendChild(box);
+  
+  // Add a second "Inner" box for complexity
+  const innerBox = document.createElement('a-box');
+  innerBox.setAttribute('position', '0 0 -5');
+  innerBox.setAttribute('width', '2');
+  innerBox.setAttribute('height', '2');
+  innerBox.setAttribute('depth', '2');
+  innerBox.setAttribute('material', 'color: #00f2ff; wireframe: true; opacity: 0.5; transparent: true;');
+  innerBox.setAttribute('animation', 'property: rotation; to: 360 0 0; loop: true; dur: 15000; easing: linear;');
+  
+  scene.appendChild(innerBox);
 }
 
 // ============================================================================

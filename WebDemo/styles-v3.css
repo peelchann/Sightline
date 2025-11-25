@@ -24,6 +24,7 @@
   --text-main: #fff;
   --text-sec: #e6f2ff;
   --color-blue: #007AFF; /* System Blue */
+  --color-neon-cyan: #00f2ff;
   --glass-bg: rgba(255, 255, 255, 0.15);
   --glass-border: rgba(255, 255, 255, 0.2);
 }
@@ -249,6 +250,62 @@ a-scene {
 .dev-log-content {
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* ===== CRYSTAL CARD (New Luminous Reality Style) ===== */
+.crystal-card {
+  position: absolute;
+  /* Frosted Glass Effect */
+  background: rgba(20, 25, 35, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  
+  /* Border: 1px White at 20% opacity */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  /* Corner Radius */
+  border-radius: 24px;
+  
+  /* Elevation: 3D Drop Shadow */
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 242, 255, 0.05); /* Subtle neon glow */
+  
+  /* Typography */
+  color: #fff;
+  padding: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  
+  /* Transition */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  
+  /* Default Dimensions (can be overridden) */
+  width: 300px;
+  min-height: 150px;
+  
+  /* Ensure visibility */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crystal-card h2 {
+  font-size: 1.25rem; /* ~20px */
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.5px;
+  color: var(--color-neon-cyan);
+}
+
+.crystal-card p {
+  font-size: 1rem; /* ~16px */
+  line-height: 1.5;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.crystal-card .icon {
+  font-size: 24px;
+  margin-bottom: 5px;
 }
 
 /* ===== RESPONSIVE ===== */
