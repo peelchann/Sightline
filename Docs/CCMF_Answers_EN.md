@@ -11,19 +11,17 @@
 
 ## A. ABSTRACT / PROJECT SUMMARY (150-200 words)
 
-Sightline delivers on-object answers for Hong Kong's heritage sites through hybrid AR anchoring. Users point their smartphone at landmarks—Clock Tower, Star Ferry, Avenue of Stars—and receive information cards anchored to the physical object in under 2 seconds, with a visible leader line showing the connection.
+Sightline is a **B2B SaaS platform** that enables museums and heritage sites to launch immersive AR guides in **30 days**, cutting deployment costs by 80% compared to traditional bespoke solutions.
 
-**Problem:** Tourists and students struggle to engage with heritage sites. Traditional audio guides lack spatial context; existing AR apps require complex setup or show generic HUD overlays.
+**Problem:** Museums face a "digital deadlock": custom AR apps cost HK$500k+ and take 6+ months to build, making them inaccessible for most exhibitions. Meanwhile, 70% of visitors disengage with static text labels.
 
-**Solution:** Zero-setup AR that combines GPS-based ARCore Geospatial (outdoor, fast) with Vision AI (indoor, precise). The system adapts to environment—GPS for open areas, camera-based recognition for interiors—ensuring reliable anchoring across contexts.
+**Solution:** A modular "Content-as-a-Service" platform. Venues pay a setup fee to digitize their space (Digital Twin), then use a self-serve CMS to update AR content instantly. The "Hybrid Anchoring" engine delivers on-object content outdoors (GPS) and indoors (Vision AI) without complex hardware.
 
-**Innovation:** Hybrid anchoring strategy with confidence gating (green/amber/grey states), Quest 3 Passthrough Camera API integration, and <2s response time. Future-ready architecture supports AR glasses.
+**Innovation:** Shift from "One-Off Project" to "Modular Platform." Includes a "Dynamic Q&A Loop" where AI tailors content to the visitor (e.g., Child vs. Historian).
 
-**Market:** HK museums, heritage venues, educational institutions via B2B2C Venue SDK model.
+**Market:** 60+ HK museums & 500+ schools.
 
-**Social Impact:** Free access for 500+ Hong Kong schools (350K students); preserves cultural knowledge through immersive learning; increases student engagement at heritage sites by 20-30%.
-
-**6-Month Goal:** 20 POIs live, 50 beta users, 1 museum pilot, public launch Month 4.
+**6-Month Goal:** Prove the "30-Day Deployment" model with 1 paid pilot at a major HK venue (e.g., Science Museum/Disneyland).
 
 ---
 
@@ -46,49 +44,59 @@ Sightline delivers on-object answers for Hong Kong's heritage sites through hybr
 - Version Control: Git, GitHub (600+ commits/year)
 
 **Relevant Projects:**
-1. **[Previous AR/Mobile Project]** - [Brief description, tech stack, outcome: X downloads/users]
-2. **[Web/Backend Project]** - [Description, demonstrates backend capability]
-3. **[Educational/Heritage Project]** - [Shows domain knowledge]
+1. **Hong Kong Disneyland AR Projects (5 Deployments):**
+   - Lead Developer/Vendor for 5 major AR activations, including **"World of Frozen"** launch.
+   - Implemented large-scale "Area Target" technology for precise anchoring across theme park zones.
+   - Proven ability to deliver "Disney-grade" stability and user experience to thousands of visitors.
+
+2. **CK Group VR Training Platform:**
+   - Developed immersive VR training solution for speech and physical therapists.
+   - Deployed to **2,000+ users** with proven educational outcomes.
+   - demonstrated capability in the education/training vertical.
+
+3. **Sightline (Current):**
+   - Developing the "Hybrid Anchoring" core technology (GPS + Vision AI) for heritage sites.
 
 **Domain Knowledge:**
-- HK heritage sector familiarity (visited 15+ museums, interviewed 8 educators)
-- Understanding of museum visitor engagement challenges
-- Prior volunteer work: [Heritage organization, if applicable]
+- Deep understanding of venue operations (Disneyland, Science Museum, Space Museum).
+- Familiarity with museum content management challenges (static content vs. visitor needs).
+- Expert in "Area Target" and spatial computing workflows for large venues.
 
 ### Team Structure (6-Month Period)
 
 **1. Founder & Technical Lead (Full-time, 40 hrs/week)**
-- Project management, milestone tracking
-- Backend development (API, database, telemetry)
-- Gemini Vision API integration
-- System architecture and integration
-- CCMF reporting (Interim & Final Reports)
+- **Expertise:** 8+ years in deep tech product management across 6 industries (Theme Parks, Telecom, Aviation).
+- **Credentials:** PMP, Scrum Master, 5 open-source products.
+- **Role:** Product vision, B2B sales (leveraging existing networks), System Architecture.
 
-**2. Unity XR Contractor (Part-time, 3 months)**
-- Budget: HK$35,000
-- 240 hours total (80 hrs/month × 3 months)
-- AR Foundation + ARCore Geospatial implementation
-- Quest 3 Passthrough Camera API integration
-- Leader line rendering, AR card UI
-- Field testing support
+**2. Core Technical Collaborators ("Virtual Team")**
+*Leveraging a trusted network of former colleagues from Gusto Collective and major film/tech projects.*
 
-**3. UX/UI & Video Production (Project-based)**
-- Budget: HK$10,000
-- AR card design (Month 1): HK$4,000
-- Demo video production (Month 5): HK$6,000
-- Deliverables: Figma mockups, 90-second field demo video
+- **Unity/Spatial Lead (Advisor/Contractor):**
+  - Background: Former colleague; currently leading **City-Scale VR** projects for HK Government.
+  - Role: Advising on large-scale spatial coordinate systems and stability.
+
+- **3D Visual Lead (Advisor/Contractor):**
+  - Background: VFX Artist on **"Warriors of Future"** (HK sci-fi blockbuster).
+  - Role: Establishing "Movie-Grade" visual standards for AR assets.
+
+- **UX/UI Lead (Advisor/Contractor):**
+  - Background: 12+ years experience in precision instrumentation design.
+  - Role: Designing the "Technical UI" for complex data overlays.
+
+**3. Execution Partners**
+- **Unity XR Contractor (Part-time):** Focused on day-to-day coding tasks (HK$35k budget).
+- **UX/UI Production:** Executing the design system (HK$10k budget).
 
 ### Execution Proof
 
 **Track Record:**
-- Shipped [X] projects totaling [Y] users/downloads
-- Completed [project name] in 4 months (similar scope to CCMF timeline)
-- GitHub: [github.com/username] - active contributor, [Z] public repositories
+- **"The Disney Moat":** 5 successful AR deployments for HK Disneyland (including *World of Frozen*).
+- **"The Education Moat":** VR Training platform deployed to **2,000+ users** (CK Group).
+- **"The Team Moat":** Core collaborators have worked together for years; no "forming/storming" risk.
 
 **Risk Mitigation:**
-- Contingency budget (HK$10,000) for contractor delays
-- Phone-first approach (Quest 3 is enhancement, not blocker)
-- Meta's Passthrough Camera API samples provide working baseline code
+- **Relationship-First Strategy:** We are not "cold calling" museums. We are upgrading existing clients who trust us.
 
 ### Role Allocation
 
@@ -153,63 +161,61 @@ Become the default AR content layer for heritage sites across Hong Kong, then ex
 
 ### Marketing & Go-to-Market Strategy
 
-**Phase 1 (Month 1-3): Proof of Concept**
-- Direct outreach to 10 museums (email + demo video)
-- Attend CCMF showcase events for exposure
-- Social media: Instagram/Xiaohongshu demos at Clock Tower
+**Phase 1 (Month 1-3): "Warm Lead" Activation**
+- **Leverage Existing Relationships:** Direct outreach to "warm" contacts at HK Disneyland and HK Science/Space Museums.
+- **Value Prop:** Offer a "30-Day Deployment" pilot to prove speed and cost-efficiency vs. traditional vendors.
+- **Deliverable:** Secure 1 high-profile pilot (LOI) to validate the SaaS model.
 
-**Phase 2 (Month 4-6): Pilot Validation**
-- Teacher trial at Tsim Sha Tsui Promenade (Month 3)
-- Collect testimonials + usage data (dwell time, engagement)
-- Case study: "[School name] increases heritage engagement by 25%"
+**Phase 2 (Month 4-6): The "30-Day" Campaign**
+- **Campaign Message:** "Launch your AR guide in 30 days, not 6 months."
+- **Target:** Tier 2 museums and heritage sites (PMQ, Tai Kwun) who lack big budgets for custom apps.
+- **Proof Point:** Use data/testimonials from Phase 1 pilot to close deals.
 
-**Phase 3 (Month 7-12, Post-CCMF): Venue SDK Launch**
-- Pricing: HK$5,000-15,000/venue/year (tiered by # of POIs)
-- Sales channels: Direct B2B, partnerships with museum associations
-- Marketing: Conference presence (MuseumNext Asia, EdTech Asia)
+**Phase 3 (Month 7-12, Post-CCMF): Venue SDK Scale-Up**
+- **Self-Serve Portal:** Launch the CMS dashboard allowing curators to update content instantly.
+- **Expansion:** Move into education sector (schools) using the "CK VR Training" success story as validation.
 
 ### Time to Market
 
 **Product Launch Timeline:**
 ✅ **Within 3 months of grant disbursement** (aligns with CCMF Section 4.1 encouragement)
 
-- **Month 1 (Feb 2026):** MVP with 10 POIs, backend API functional
-- **Month 2 (Mar 2026):** Vision AI fallback, Quest 3 indoor capability
-- **Month 3 (Apr 2026):** Teacher trial (15+ students), collect feedback
-- **Month 4 (May 2026):** 🚀 **PUBLIC BETA LAUNCH** (50 users, App Store/Google Play)
+- **Month 1 (Feb 2026):** Platform "Hardening" (bringing Disney-grade stability to the MVP).
+- **Month 2 (Mar 2026):** Vision AI fallback + CMS Dashboard v0.1.
+- **Month 3 (Apr 2026):** **First Pilot Launch** (Target: Warm lead venue).
+- **Month 4 (May 2026):** 🚀 **PUBLIC BETA** (Self-serve platform open to select partners).
 
 **Post-Launch (Month 5-6):**
-- Month 5: Demo video for venues, iterate based on beta feedback
-- Month 6: Sign pilot LOI, prepare CIP application for scale-up funding
+- Month 5: Case Study production (Video + Metrics from Pilot).
+- Month 6: Sign 2nd and 3rd LOIs, prepare CIP application for scale-up funding.
 
 ### Revenue Model (Post-CCMF, Month 7+)
 
-**Venue SDK Subscriptions:**
-- Tier 1: HK$5,000/year (5 POIs, 500 monthly users)
-- Tier 2: HK$10,000/year (15 POIs, 2,000 monthly users)
-- Tier 3: HK$15,000/year (30 POIs, 5,000 monthly users, custom missions)
+**1. B2B SaaS Subscription (Recurring):**
+- **Core Platform Fee:** HK$5,000 - HK$15,000 / month per venue.
+- **Includes:** Hosting, CMS access, analytics dashboard, basic support.
+- **Value:** "Self-management" capability (curators change content without coding).
 
-**Mission Creator Tool (Future):**
-- Free tier: Public routes, community content
-- Premium: 20% revenue share on paid routes (e.g., "Hidden Kowloon Food Tour AR")
+**2. Setup & "Digital Twin" Fee (One-Off):**
+- **Fee:** HK$20,000 - HK$50,000 per venue.
+- **Includes:** On-site scanning (Area Targets), initial content alignment, staff training.
+- **Why:** Covers the "hard costs" of digitization while keeping the monthly SaaS fee affordable.
 
-**Sponsored Layers (Opt-in, Ethical):**
-- Brands sponsor heritage content (e.g., HSBC sponsors Star Ferry history)
-- Pricing: HK$10K-50K/campaign
-- User consent required; no intrusive ads
+**3. Enterprise/Custom Tier:**
+- For complex venues (e.g., Theme Parks).
+- Custom integrations, high-volume API usage, SLA support.
 
 ### Project Viability
 
-**Unit Economics (Illustrative, Post-CCMF):**
-- Cost per venue: HK$2,000 (10 POIs × HK$200 content creation)
-- Subscription revenue: HK$10,000/year average
-- Gross margin: 80% after cloud costs (HK$1,500/venue/year)
-- Break-even: 15-20 paying venues (achievable Month 12-15)
+**Unit Economics (Illustrative):**
+- **Cost Savings for Venue:** Traditional custom AR app = HK$500k+ & 6 months. Sightline = ~HK$80k Year 1 & 30 days.
+- **Scalability:** The platform (CMS + Cloud Anchoring) is built once; adding venues is marginal cost.
+- **Gross Margin:** Target 70%+ once platform is mature (after cloud costs).
 
 **Competitive Moat:**
-- First-mover in HK heritage AR with proven hybrid anchoring
-- Venue relationships + content library (barrier to entry)
-- Technical differentiation: <2s response, glasses-ready architecture
+- **"Disney-Grade" Stability:** Proven execution capability that cheaper competitors lack.
+- **Speed (30 Days):** Process efficiency that custom agencies cannot match.
+- **Data (The "Google Analytics of Physical Space"):** Unique insight into visitor behavior.
 
 **Path to Profitability:**
 - Month 1-6 (CCMF): Product development, pilot validation
@@ -237,14 +243,16 @@ Traditional AR apps use single-method anchoring (GPS-only or image-only). Sightl
   - Coverage: Any well-lit interior with distinct visual features
 
 - **Fallback (High-Precision):** Vuforia Area Target (optional)
+  - **Leveraging Disney-Grade Tech:** Uses the same "Area Target" technology the founder deployed for HK Disneyland's AR fireworks.
   - Latency: p50 <1.2s (image recognition + pose estimation)
   - Accuracy: ±5cm (pre-scanned environment)
   - Coverage: Museums, galleries (requires one-time scanning)
 
 **Technical Differentiation:**
-- Confidence state machine: Green (≥0.85) / Amber (0.60-0.85) / Grey (<0.60)
-- Graceful degradation: If GPS drifts, system prompts "Re-aim camera to lock"
-- Cross-device consistency: Same POI data on phone, Quest 3, future glasses
+- **The "Dynamic Q&A Loop":** Shift from static labels to a conversational loop: **See → Anchor → Ask → Overlay**. The AI adapts the answer to the user (e.g., Engineer vs. Historian context).
+- **Confidence state machine:** Green (≥0.85) / Amber (0.60-0.85) / Grey (<0.60)
+- **Graceful degradation:** If GPS drifts, system prompts "Re-aim camera to lock"
+- **Cross-device consistency:** Same POI data on phone, Quest 3, future glasses
 
 **2. Cutting-Edge Platform APIs**
 
@@ -491,11 +499,19 @@ Sightline is designed primarily to serve Hong Kong's educational and cultural pr
 
 ### Market Positioning
 
-**Not competing with:** Google Lens (no AR anchoring), Niantic (gaming focus)
+**Not competing with:** Google Lens (no AR anchoring), Niantic (gaming focus).
 
-**Directly competing with:** Museum-specific AR apps, Vuforia enterprise solutions (for venue use cases)
+**Directly competing with:** Museum-specific AR apps, Vuforia enterprise solutions.
 
-**Competitive moat:** First-mover in HK heritage + hybrid anchoring tech + venue relationships
+**Competitive Moat: "The Relationship Firewall"**
+1.  **Trusted Vendor Status:** We are an approved vendor for HK's most demanding clients (Disney, Telecoms). Competitors with "better tech" cannot penetrate these bureaucratic firewalls easily.
+2.  **Idea Scarcity:** Sightline is a rare "Deep Tech Consumer Play" in a HK startup ecosystem saturated with generic e-commerce/fintech apps.
+3.  **Local Context:** We understand HK's unique density/verticality challenges (which break generic GPS apps) and solve them with hybrid anchoring.
+
+**Why Hong Kong? (The "Unfair Advantage")**
+- **High-Value Density:** HK has 60+ museums/venues in a tiny geographic area. We can service 10 clients with 1 field team.
+- **Testbed for Asia:** If it works in HK's complex urban canyon environment (Clock Tower, Central), it works anywhere.
+- **Gateway:** Validating with "Global Brand" clients in HK (Disney) creates instant credibility for expansion to Singapore/Japan.
 
 ---
 
@@ -589,24 +605,19 @@ The Sightline project has:
 
 ### Market Risks
 
-**Risk 4: Museum Pilot Rejection (No LOI)**
-- **Probability:** Medium (cold outreach is hard)
-- **Impact:** Medium (affects CIP application strength)
+**Risk 4: "Big System Integrators Copy Us"**
+- **Probability:** Medium (if we prove the market).
+- **Impact:** High.
 - **Mitigation:**
-  - Outreach to 10 museums (target 1-2 responses)
-  - Offer free pilot (no cost to venue)
-  - Start with smaller venues: PMQ, Tai Kwun (easier approval than HK Museum of History)
-  - Leverage advisor connections (if available)
-- **Timeline:** Begin outreach Week 5 (after demo video ready)
+  - **Speed:** By the time an SI scopes a project, we are already live (30-day deploy).
+  - **CMS Lock-in:** We embed our "Content Management System" into the museum's workflow. Once curators are trained on Sightline, they won't want to switch.
+  - **Niche IP:** "Hybrid Anchoring" (GPS+Vision) is hard to get right; generalist SIs usually fail at the "last meter" accuracy.
 
-**Risk 5: Low Student Engagement in Trial**
-- **Probability:** Low (novelty of AR typically drives initial engagement)
-- **Impact:** Medium (weak testimonial data)
+**Risk 5: Museum Pilot Rejection (No LOI)**
+- **Probability:** Medium.
 - **Mitigation:**
-  - Co-design with teachers: Ask students what they want to learn
-  - Gamification: Scavenger hunt mode ("Find 5 POIs to unlock badge")
-  - Iterate quickly: If trial feedback is negative, pivot POI content in 1 week
-- **Timeline:** Teacher trial Month 3; leave 2 weeks buffer for iteration before Month 4 beta
+  - **Offer the "30-Day Challenge":** "Give us one exhibit and 30 days. If you don't like it, don't pay."
+  - **Start Small:** Target specific "Pain Point" exhibits (e.g., the Mona Lisa crowd control) rather than whole-museum overhauls.
 
 ### Team Risks
 
