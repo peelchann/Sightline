@@ -40,20 +40,43 @@ sightline/
    └─ UPDATE-SUMMARY-QUEST3.md   # Quest 3 Passthrough Camera API update
 ```
 
-## Quick Start
+## Fresh Clone Setup (Any Machine)
 
 ```bash
-# Install dependencies
-npm install
+# 1. Clone into your home directory
+cd ~
+mkdir -p Projects
+cd Projects
+git clone https://github.com/peelchann/Sightline.git
+cd Sightline
 
-# Run server (port 3000)
-cd Server && npm run dev
+# 2. Use correct Node version
+nvm use  # reads .nvmrc (Node 20)
 
-# Run web demo (port 5173)
-cd WebDemo && npm run dev
+# 3. Copy environment template (if needed for future features)
+cp .env.example .env
+
+# 4. Open in Cursor/VSCode
+cursor .
 ```
 
-Open `http://localhost:5173`. Click **What is this?** to fetch `/answer`.
+**Notes for cross-machine workflow:**
+- Always clone fresh on each machine (don't copy `.git` folders)
+- Cursor agent worktrees are machine-local; only push normal branches to remote
+- Keep all secrets in `.env` (never commit)
+
+## Quick Start (Development)
+
+```bash
+# WebDemo is static HTML/JS - just serve it:
+cd WebDemo
+python -m http.server 8000
+# Open http://localhost:8000
+
+# Or use any static server (npx serve, Live Server extension, etc.)
+```
+
+**Production:** Deployed on Vercel at `https://sightline-webar.vercel.app`
 
 ## API
 
