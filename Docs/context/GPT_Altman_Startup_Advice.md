@@ -144,3 +144,6 @@ AI should not live only on web/apps. The next interface is **in the physical wor
 6. What claims about models (“nano banana”, SAM2) are verified vs inspiration-only?
 
 
+
+
+
